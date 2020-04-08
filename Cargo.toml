@@ -3,6 +3,12 @@ name = "filetools"
 version = "0.1.0"
 authors = ["Graham Keenan <graham.keenan@outlook.com>"]
 edition = "2018"
+description = "Port of Jonathan Grizou's filetools library (https://github.com/jgrizou/filetools)"
+repository = "https://github.com/Tyrannican/filetools-rs"
+license = "MIT"
+keywords = ["files", "utility", "filesystem"]
+categories = ["filesystem"]
+readme = "README.md"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
