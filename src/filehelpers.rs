@@ -5,8 +5,8 @@ use std::path::{Path, PathBuf};
 pub struct FileHelpers;
 
 impl FileHelpers {
-    pub fn ensure_dir(dir_name: &str) -> Result <()> {
-        let path = Path::new(dir_name);
+    pub fn ensure_dir(dir_name: PathBuf) -> Result <()> {
+        let path = Path::new(&dir_name);
         if !path.exists() {
             fs::create_dir(path)?;
         }
@@ -14,15 +14,13 @@ impl FileHelpers {
         Ok(())
     }
 
-    pub fn is_subdir(path: &str, directory: &str) -> Result<bool> {
-        let directory = fs::canonicalize(Path::new(directory))?;
-        let path = fs::canonicalize(Path::new(path))?;
+    pub fn is_subdir(path: PathBuf, directory: PathBuf) -> Result<bool> {
+        let directory = fs::canonicalize(Path::new(&directory))?;
+        let path = fs::canonicalize(Path::new(&path))?;
 
         let mut is_subdir = Ok(false);
-        println!("Abs: {:?}", directory);
         
         for ancestor in path.ancestors() {
-            println!("Ancestor: {:?}", ancestor);
             if ancestor == directory {
                 is_subdir = Ok(true);
                 break;
@@ -32,9 +30,9 @@ impl FileHelpers {
         is_subdir
     }
 
-    pub fn list_files(path: &str) -> Result<Vec<PathBuf>> {
+    pub fn list_files(path: PathBuf) -> Result<Vec<PathBuf>> {
         let mut found_files = Vec::new();
-        let search_path = Path::new(path);
+        let search_path = Path::new(&path);
 
         for entry in fs::read_dir(search_path)? {
             let entry = entry?;
@@ -44,12 +42,10 @@ impl FileHelpers {
             if metadata.is_file() {
                 found_files.push(path);
             } else if metadata.is_dir() {
-                if let Some(subpath) = path.to_str() {
-                    let subfiles = FileHelpers::list_files(subpath)?;
+                let subfiles = FileHelpers::list_files(path)?;
 
-                    for file in subfiles.iter() {
-                        found_files.push(file.to_path_buf());
-                    }
+                for file in subfiles.iter() {
+                    found_files.push(file.to_path_buf());
                 }
             } else {
                 continue;
@@ -59,9 +55,9 @@ impl FileHelpers {
         Ok(found_files)
     }
 
-    pub fn list_folders(path: &str) -> Result<Vec<PathBuf>> {
+    pub fn list_folders(path: PathBuf) -> Result<Vec<PathBuf>> {
         let mut found_folders = Vec::new();
-        let search_path = Path::new(path);
+        let search_path = Path::new(&path);
 
         for entry in fs::read_dir(search_path)? {
             let entry = entry?;

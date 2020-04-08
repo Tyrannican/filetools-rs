@@ -11,8 +11,8 @@ mod tests {
 
     #[test]
     fn iterate_files_and_folders() -> Result<()>{
-        let files = FileHelpers::list_files("src")?;
-        let folders = FileHelpers::list_folders(".")?;
+        let files = FileHelpers::list_files(PathBuf::from("src"))?;
+        let folders = FileHelpers::list_folders(PathBuf::from("."))?;
 
         // filehelpers.rs filenaming.rs lib.rs
         assert_eq!(files.len(), 3);
@@ -24,12 +24,12 @@ mod tests {
 
     #[test]
     fn folder_creation() {
-        let _ = FileHelpers::ensure_dir("./test/func");
+        let _ = FileHelpers::ensure_dir(PathBuf::from("./test/func"));
     }
 
     #[test]
     fn subdir_test() -> Result<()> {
-        let f = FileHelpers::is_subdir("./test/func", "./test")?;
+        let f = FileHelpers::is_subdir(PathBuf::from("./test/func"), PathBuf::from("./test"))?;
         assert!(f, true);
 
         Ok(())
