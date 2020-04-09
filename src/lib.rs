@@ -91,4 +91,25 @@ mod tests {
 
         Ok(())
     }
+
+    #[test]
+    fn path_contains() -> Result<()> {
+        let path1 = PathBuf::from("./target/doc/cfg_if");
+        let path2 = PathBuf::from("./target/chrono/datetime");
+        let path3 = PathBuf::from("./target");
+
+        let target_paths: Vec<PathBuf> = FileHelpers::list_files(path3, true)?
+                .into_iter()
+                .filter(|x| FileHelpers::path_contains(x.to_path_buf(), "doc"))
+                .collect();
+
+        assert_eq!(FileHelpers::path_contains(path1, "doc"), true);
+        assert_eq!(FileHelpers::path_contains(path2, "debug"), false);
+
+        for path in target_paths.iter() {
+            assert_eq!(FileHelpers::path_contains(path.to_path_buf(), "doc"), true);
+        }
+
+        Ok(())
+    }
 }

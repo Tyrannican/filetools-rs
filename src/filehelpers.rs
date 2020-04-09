@@ -82,6 +82,22 @@ impl FileHelpers {
         is_subdir
     }
 
+    /// Determines if a given `PathBuf` contains a search string
+    /// 
+    /// Returns `true` if search string present, else `false`
+    pub fn path_contains(path: PathBuf, search_str: &str) -> bool {
+        // Path successfully converted to str
+        if let Some(p) = path.to_str() {
+            // Contains string, return true
+            if p.contains(search_str) {
+                return true
+            }
+        }
+
+        // Search string not found
+        false
+    }
+
     /// Lists all files in a given `path`
     /// If `recursive` is set, iterates through all subfolders recursively to find all files
     /// If `recursive` not set, just finds all files in the current directory
