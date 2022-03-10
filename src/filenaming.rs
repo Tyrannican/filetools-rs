@@ -11,7 +11,7 @@
 //!     assert_eq!(custom_name, PathBuf::from("test.pdf"));
 //! 
 //!     // Name will be suffixed by the current time it was generated
-//!     let timestamped_name = filenaming::generate_timestamped_name("test", ".pdf");
+//!     let timestamped_name = filenaming::generate_default_timestamped_name("test", ".pdf");
 //! 
 //!     // Random name is a UUIDv4 string suffixed by the extension
 //!     let random_name = filenaming::generate_random_name(".pdf");
