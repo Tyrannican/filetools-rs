@@ -41,18 +41,16 @@
 pub mod filenaming;
 pub mod filehelpers;
 
+
 #[cfg(test)]
 mod tests {
-    use super::*;
-    use std::io::Result;
-    use filehelpers::FileHelpers;
-    use filenaming::FileNaming;
+    use crate::{filehelpers, filenaming};
     use std::path::PathBuf;
 
     #[test]
-    fn iterate_files_and_folders() -> Result<()> {
-        let files = FileHelpers::list_files(PathBuf::from("src"), true)?;
-        let folders = FileHelpers::list_folders(PathBuf::from("."), false)?;
+    fn iterate_files_and_folders() -> Result<(), Box<dyn std::error::Error>> {
+        let files = filehelpers::list_files(PathBuf::from("src"), true)?;
+        let folders = filehelpers::list_folders(PathBuf::from("."), false)?;
 
         // filehelpers.rs filenaming.rs lib.rs
         assert_eq!(files.len(), 3);
@@ -64,23 +62,23 @@ mod tests {
 
     #[test]
     fn folder_creation() {
-        let _ = FileHelpers::ensure_dir(PathBuf::from("./test/func"));
+        let _ = filehelpers::ensure_dir(PathBuf::from("./test/func"));
     }
 
     #[test]
-    fn subdir_test() -> Result<()> {
-        let f = FileHelpers::is_subdir(PathBuf::from("./test/func"), PathBuf::from("./test"))?;
-        assert!(f, true);
+    fn subdir_test() -> Result<(), Box<dyn std::error::Error>> {
+        let f = filehelpers::is_subdir(PathBuf::from("./test/func"), PathBuf::from("./test"))?;
+        assert!(f);
 
         Ok(())
     }
 
     #[test]
-    fn generate_filenames() -> Result<()> {
-        let name1 = FileNaming::generate_timestamped_name("", ".pdf");
-        let name2 = FileNaming::generate_timestamped_name("test_file", ".dxf");
-        let name3 = FileNaming::generate_random_name(".docx");
-        let name4 = FileNaming::generate_n_digit_name(55, 6, ".pdf");
+    fn generate_filenames() -> Result<(), Box<dyn std::error::Error>> {
+        let name1 = filenaming::generate_default_timestamped_name("", ".pdf");
+        let name2 = filenaming::generate_default_timestamped_name("test_file", ".dxf");
+        let name3 = filenaming::generate_random_name(".docx");
+        let name4 = filenaming::generate_n_digit_name(55, 6, ".pdf");
 
         println!("Name1: {:?}", name1);
         println!("Name2: {:?}", name2);
@@ -93,21 +91,21 @@ mod tests {
     }
 
     #[test]
-    fn path_contains() -> Result<()> {
+    fn path_does_contains() -> Result<(), Box<dyn std::error::Error>> {
         let path1 = PathBuf::from("./target/doc/cfg_if");
         let path2 = PathBuf::from("./target/chrono/datetime");
         let path3 = PathBuf::from("./target");
 
-        let target_paths: Vec<PathBuf> = FileHelpers::list_files(path3, true)?
+        let target_paths: Vec<PathBuf> = filehelpers::list_files(path3, true)?
                 .into_iter()
-                .filter(|x| FileHelpers::path_contains(x.to_path_buf(), "doc"))
+                .filter(|x| filehelpers::path_contains(x.to_path_buf(), "doc"))
                 .collect();
 
-        assert_eq!(FileHelpers::path_contains(path1, "doc"), true);
-        assert_eq!(FileHelpers::path_contains(path2, "debug"), false);
+        assert_eq!(filehelpers::path_contains(path1, "doc"), true);
+        assert_eq!(filehelpers::path_contains(path2, "debug"), false);
 
         for path in target_paths.iter() {
-            assert_eq!(FileHelpers::path_contains(path.to_path_buf(), "doc"), true);
+            assert_eq!(filehelpers::path_contains(path.to_path_buf(), "doc"), true);
         }
 
         Ok(())
