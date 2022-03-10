@@ -7,5 +7,5 @@ This library allows for simple filename generation and finding all files/folders
 Add to your `Cargo.toml`
 ```toml
 [dependencies]
-filetools = "0.1.1"
+filetools = "0.2.0"
 ```
