@@ -44,10 +44,9 @@ use std::path::{Path, PathBuf};
 /// Does nothing if the directory already exists
 ///
 /// Returns `Ok` if successful, `Err` if not
-pub fn ensure_dir(dir_name: PathBuf) -> Result<()> {
-    let path = Path::new(&dir_name);
-    if !path.exists() {
-        fs::create_dir(path).context("unable to create directory")?;
+pub fn ensure_dir(dir_name: impl AsRef<Path>) -> Result<()> {
+    if !dir_name.as_ref().exists() {
+        fs::create_dir(dir_name).context("unable to create directory")?;
     }
 
     Ok(())
@@ -59,8 +58,9 @@ pub fn ensure_dir(dir_name: PathBuf) -> Result<()> {
 /// Note::Not entirely sure this works perfectly fine, use at own risk
 ///
 /// Returns `Ok(true)` if `path` is a subdirectory, `Ok(false)` if not, `Err` if error occured
-pub fn is_subdir(path: PathBuf, directory: PathBuf) -> Result<bool> {
+pub fn is_subdir(path: impl AsRef<Path>, directory: impl AsRef<Path>) -> Result<bool> {
     // Get absolute paths
+    // TODO: sort this out for impl
     let directory =
         fs::canonicalize(Path::new(&directory)).context("unable to get absolute path")?;
     let path = fs::canonicalize(Path::new(&path)).context("unable to get absolute path")?;
