@@ -1,8 +1,5 @@
 use anyhow::{Context, Result};
-use std::{
-    env,
-    path::{Component, Path},
-};
+use std::path::{Component, Path};
 use tokio::fs;
 
 // pub mod filehelpers;
@@ -11,16 +8,16 @@ use tokio::fs;
 // What do we want?
 //
 // Iterate files in a directory
-// Iterate files in a directory
+// Iterate folders in a directory
 //
+// Iterate files in a directory + all subdirs
 // Iterate folders in a directory + all subdirs
-// Iterate folders in a directory + all subdirs
 //
-// Create a directory if not exists
+// Create a directory if not exists - DONE
 //
-// Check if a directory is a subdirectory
+// Check if a directory is a subdirectory - DONE
 //
-// Pattern match on a path
+// Pattern match on a path - DONE
 //
 // All of the above but sync (feature)
 //
@@ -50,7 +47,7 @@ pub async fn is_subdir(path: impl AsRef<Path>, dir: impl AsRef<Path>) -> Result<
     Ok(false)
 }
 
-fn path_contains(path: impl AsRef<Path>, pattern: impl AsRef<Path> /* maybe */) -> bool {
+pub fn path_contains(path: impl AsRef<Path>, pattern: impl AsRef<Path> /* maybe */) -> bool {
     if let Some(p) = path.as_ref().to_str() {
         if let Some(pat) = pattern.as_ref().to_str() {
             return p.contains(&pat);
