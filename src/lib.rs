@@ -1,104 +1,131 @@
-//! Simple functions to help with file naming and file iteration
-//! Ported from the [filetools](https://github.com/jgrizou/filetools) library written by Jonathan Grizou
-//! 
-//! # Examples
-//! 
-//! ```
-//! use filetools::filehelpers;
-//! use std::path::PathBuf;
-//! 
-//! fn main() -> Result <(), Box<dyn std::error::Error>> {
-//!     /// Creating a directory
-//!     let new_path = PathBuf::from("./test");
-//!     let _ = filehelpers::ensure_dir(new_path)?;
-//! 
-//!     /// Iterating through all files in a directory
-//!     let nr_search = PathBuf::from("./test");
-//!     let r_search = PathBuf::from("./test");
-//! 
-//!     // Non-recursive search of directroy, just files in search folder
-//!     let non_recursed_files = filehelpers::list_files(nr_search, false);
-//! 
-//!     // Recursive search of directory, gets all files in directory and all sub-directories
-//!     let recursed_files = filehelpers::list_files(r_search, true);
-//! 
-//!     /// Iterating through all folders in a directory
-//!     let nr_search = PathBuf::from("./test");
-//!     let r_search = PathBuf::from("./test");
-//! 
-//!     // Non-recursive search for all folders, just folders in search directory
-//!     let non_recursive_folders = filehelpers::list_folders(nr_search, false);
-//! 
-//!     // Recursive search of all folders, all subfolders in a directory as well
-//!     let recursive_folders = filehelpers::list_folders(r_search, true);
-//! 
-//!     Ok(())
-//! } 
-//! ```
-//! 
+use anyhow::{Context, Result};
+use std::{
+    env,
+    path::{Component, Path},
+};
+use tokio::fs;
 
-pub mod filenaming;
-pub mod filehelpers;
+// pub mod filehelpers;
+// pub mod filenaming;
 
+// What do we want?
+//
+// Iterate files in a directory
+// Iterate files in a directory
+//
+// Iterate folders in a directory + all subdirs
+// Iterate folders in a directory + all subdirs
+//
+// Create a directory if not exists
+//
+// Check if a directory is a subdirectory
+//
+// Pattern match on a path
+//
+// All of the above but sync (feature)
+//
+// Naming patterns
+//
+
+pub async fn create_directory(dir: impl AsRef<Path>) -> Result<()> {
+    fs::create_dir_all(dir)
+        .await
+        .context("unable to create directory")?;
+
+    Ok(())
+}
+
+pub async fn is_subdir(path: impl AsRef<Path>, dir: impl AsRef<Path>) -> Result<bool> {
+    for component in path.as_ref().components() {
+        match component {
+            Component::Normal(p) => {
+                if p == dir.as_ref().as_os_str() {
+                    return Ok(true);
+                }
+            }
+            _ => {}
+        }
+    }
+
+    Ok(false)
+}
+
+fn path_contains(path: impl AsRef<Path>, pattern: impl AsRef<Path> /* maybe */) -> bool {
+    if let Some(p) = path.as_ref().to_str() {
+        if let Some(pat) = pattern.as_ref().to_str() {
+            return p.contains(&pat);
+        }
+    }
+
+    false
+}
 
 #[cfg(test)]
 mod tests {
-    use crate::{filehelpers, filenaming};
-    use std::path::PathBuf;
+    use super::*;
+    use anyhow::{Context, Result};
 
-    #[test]
-    fn iterate_files_and_folders() -> Result<(), Box<dyn std::error::Error>> {
-        let files = filehelpers::list_files(PathBuf::from("src"), true)?;
-        let folders = filehelpers::list_folders(PathBuf::from("."), false)?;
+    // This is needed as the `tempfile` lib doesn't like nested temp dirs
+    async fn create_tmpdir(path: &str) -> Result<impl AsRef<Path>> {
+        let target = std::env::temp_dir().join(path);
+        tokio::fs::create_dir_all(&target)
+            .await
+            .context("creating tempdir")?;
 
-        // filehelpers.rs filenaming.rs lib.rs
-        assert_eq!(files.len(), 3);
+        Ok(target)
+    }
 
-        // target/ src/ .git/
-        assert_eq!(folders.len(), 4);
+    #[tokio::test]
+    // This is kind of redundant as it just wraps `tokio::fs::create_dir_all`
+    // but yay for test coverage i suppose
+    async fn creates_a_directory() -> Result<()> {
+        let tmp = std::env::temp_dir();
+
+        // Creates a single directory
+        let single_path = tmp.join("create_dir");
+        create_directory(&single_path)
+            .await
+            .context("create directory single")?;
+
+        assert!(single_path.exists());
+
+        // Nested directories
+        let nested_path = tmp.join("create_dir/test/this/is/nested");
+        create_directory(&nested_path)
+            .await
+            .context("create directory nested")?;
+
+        assert!(nested_path.exists());
+
+        Ok(())
+    }
+
+    #[tokio::test]
+    async fn checks_if_a_directory_is_a_subdirectory() -> Result<()> {
+        let path = create_tmpdir("is_subdir/this/is/a/nested/tmp/dir")
+            .await
+            .context("creating nested tempdirs")?;
+
+        let mut result = is_subdir(&path, "nested").await.context("is_subdir test")?;
+        assert!(result);
+
+        result = is_subdir(&path, "not_valid")
+            .await
+            .context("is_subdir test")?;
+
+        assert!(!result);
         Ok(())
     }
 
     #[test]
-    fn folder_creation() {
-        let _ = filehelpers::ensure_dir(PathBuf::from("./test/func"));
-    }
+    fn check_path_contains_subpath() {
+        let main = "I/am/a/path/hello/there";
+        assert!(path_contains(main, "a/path"));
+        assert!(!path_contains(main, "not"));
 
-    #[test]
-    fn generate_filenames() -> Result<(), Box<dyn std::error::Error>> {
-        let name1 = filenaming::generate_default_timestamped_name("", ".pdf");
-        let name2 = filenaming::generate_default_timestamped_name("test_file", ".dxf");
-        let name3 = filenaming::generate_random_name(".docx");
-        let name4 = filenaming::generate_n_digit_name(55, 6, ".pdf");
-
-        println!("Name1: {:?}", name1);
-        println!("Name2: {:?}", name2);
-        println!("Name3: {:?}", name3);
-        println!("Name4: {:?}", name4);
-
-        assert_eq!(name4, PathBuf::from("000055.pdf"));
-
-        Ok(())
-    }
-
-    #[test]
-    fn path_does_contains() -> Result<(), Box<dyn std::error::Error>> {
-        let path1 = PathBuf::from("./target/doc/cfg_if");
-        let path2 = PathBuf::from("./target/chrono/datetime");
-        let path3 = PathBuf::from("./target");
-
-        let target_paths: Vec<PathBuf> = filehelpers::list_files(path3, true)?
-                .into_iter()
-                .filter(|x| filehelpers::path_contains(x.to_path_buf(), "doc"))
-                .collect();
-
-        assert_eq!(filehelpers::path_contains(path1, "doc"), true);
-        assert_eq!(filehelpers::path_contains(path2, "debug"), false);
-
-        for path in target_paths.iter() {
-            assert_eq!(filehelpers::path_contains(path.to_path_buf(), "doc"), true);
-        }
-
-        Ok(())
+        // Check it works for paths
+        let main = Path::new(main);
+        assert!(path_contains(main, Path::new("a/path")));
+        assert!(!path_contains(main, Path::new("not")));
     }
 }
