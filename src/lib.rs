@@ -117,6 +117,66 @@ mod tests {
     use anyhow::{Context, Result};
     use std::path::PathBuf;
 
+    /// Helper for creating temp directories
+    ///
+    /// Tempfile _would_ work but I want nested dirs and easy ways to create
+    /// a series of files / folder quickly without worrying
+    struct TempPath {
+        root: PathBuf,
+        pub path: PathBuf,
+    }
+
+    impl TempPath {
+        pub async fn new(p: impl AsRef<Path>) -> Result<Self> {
+            let root = std::env::temp_dir();
+            let path = if p.as_ref().starts_with(&root) {
+                p.as_ref().to_path_buf()
+            } else {
+                root.join(p)
+            };
+
+            create_directory(&path).await?;
+
+            Ok(Self { root, path })
+        }
+
+        pub async fn new_file(&self, name: impl AsRef<Path>) -> Result<Self> {
+            let p = self.path.join(name);
+            tokio::fs::File::create(&p).await?;
+
+            Self::new(p).await
+        }
+
+        pub async fn multi_files(&self, names: Vec<impl AsRef<Path>>) -> Result<()> {
+            for name in names {
+                tokio::fs::File::create(&self.path.join(name)).await?;
+            }
+
+            Ok(())
+        }
+
+        pub async fn new_folder(&self, name: impl AsRef<Path>) -> Result<Self> {
+            let p = self.path.join(name);
+            create_directory(&p).await?;
+
+            Self::new(p).await
+        }
+
+        pub async fn multi_folder(&self, names: Vec<impl AsRef<Path>>) -> Result<()> {
+            for name in names {
+                create_directory(&self.path.join(name)).await?;
+            }
+
+            Ok(())
+        }
+
+        pub async fn cleanup(self) -> Result<()> {
+            tokio::fs::remove_dir_all(&self.path).await?;
+            drop(self);
+            Ok(())
+        }
+    }
+
     // This is needed as the `tempfile` lib doesn't like nested temp dirs
     async fn create_tmpdir(path: &str) -> Result<impl AsRef<Path>> {
         let target = std::env::temp_dir().join(path);
@@ -250,6 +310,13 @@ mod tests {
 
         tokio::fs::remove_dir_all(ffolder).await?;
 
+        Ok(())
+    }
+
+    #[tokio::test]
+    async fn testfile_struct() -> Result<()> {
+        // TODO: Test this temp path thing actually works
+        let tmp = TempPath::new("testpath");
         Ok(())
     }
 }
