@@ -1,5 +1,6 @@
 use anyhow::{Context, Result};
-use std::path::{Component, Path};
+use async_recursion::async_recursion;
+use std::path::{Component, Path, PathBuf};
 use tokio::fs;
 
 // pub mod filehelpers;
@@ -57,10 +58,64 @@ pub fn path_contains(path: impl AsRef<Path>, pattern: impl AsRef<Path> /* maybe 
     false
 }
 
+pub async fn list_files(path: impl AsRef<Path>) -> Result<Vec<impl AsRef<Path>>> {
+    anyhow::ensure!(path.as_ref().exists(), "path does not exist");
+
+    let mut files = vec![];
+    if path.as_ref().is_file() {
+        return Ok(files);
+    }
+
+    let mut entries = fs::read_dir(path.as_ref())
+        .await
+        .context("list_files directory read")?;
+
+    while let Some(entry) = entries.next_entry().await? {
+        let e_path = entry.path();
+
+        if e_path.is_file() {
+            files.push(e_path);
+        }
+    }
+
+    Ok(files)
+}
+
+#[async_recursion]
+pub async fn list_files_recursive<P: AsRef<Path> + Send>(path: P) -> Result<Vec<PathBuf>> {
+    anyhow::ensure!(path.as_ref().exists(), "path does not exist");
+
+    let mut files = vec![];
+    if path.as_ref().is_file() {
+        return Ok(files);
+    }
+
+    let mut entries = fs::read_dir(path.as_ref())
+        .await
+        .context("list_files directory read")?;
+
+    while let Some(entry) = entries.next_entry().await? {
+        let e_path = entry.path();
+
+        if e_path.is_file() {
+            files.push(e_path);
+        } else if e_path.is_dir() {
+            files.extend(
+                list_files_recursive(e_path)
+                    .await
+                    .context("recursive list_files call")?,
+            );
+        }
+    }
+
+    Ok(files)
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
     use anyhow::{Context, Result};
+    use std::path::PathBuf;
 
     // This is needed as the `tempfile` lib doesn't like nested temp dirs
     async fn create_tmpdir(path: &str) -> Result<impl AsRef<Path>> {
@@ -116,6 +171,7 @@ mod tests {
 
     #[test]
     fn check_path_contains_subpath() {
+        // Basic str
         let main = "I/am/a/path/hello/there";
         assert!(path_contains(main, "a/path"));
         assert!(!path_contains(main, "not"));
@@ -124,5 +180,76 @@ mod tests {
         let main = Path::new(main);
         assert!(path_contains(main, Path::new("a/path")));
         assert!(!path_contains(main, Path::new("not")));
+
+        // Pathbufs?
+        let main = PathBuf::from("I/am/a/path/hello/there");
+        assert!(path_contains(&main, PathBuf::from("a/path")));
+        assert!(!path_contains(main, PathBuf::from("not")));
+
+        // What about strings?
+        assert!(path_contains(
+            String::from("I/am/a/path/hello/there"),
+            String::from("a/path")
+        ));
+        assert!(!path_contains(
+            String::from("I/am/a/path/hello/there"),
+            String::from("not")
+        ));
+    }
+
+    #[tokio::test]
+    async fn check_list_files_works() -> Result<()> {
+        let tmp = std::env::temp_dir();
+        let folder = tmp.join("list_files_example");
+        create_directory(&folder).await?;
+
+        tokio::fs::File::create(&folder.join("first.rs")).await?;
+        tokio::fs::File::create(&folder.join("second.txt")).await?;
+        tokio::fs::File::create(&folder.join("another_second.php")).await?;
+        tokio::fs::File::create(&folder.join("third.c")).await?;
+
+        let res = list_files(&folder).await?;
+        assert_eq!(res.len(), 4);
+
+        // Errors on non-exist
+        assert!(
+            list_files_recursive("iDoNotExistAndNeVerWillUnlessYouIntenTionallyCreateMe")
+                .await
+                .is_err()
+        );
+
+        tokio::fs::remove_dir_all(&folder).await?;
+
+        Ok(())
+    }
+
+    #[tokio::test]
+    async fn check_list_files_recursive_works() -> Result<()> {
+        let tmp = std::env::temp_dir();
+        let ffolder = tmp.join("first");
+        let sfolder = ffolder.join("second");
+        let tfolder = sfolder.join("third");
+        create_directory(&ffolder).await?;
+        create_directory(&sfolder).await?;
+        create_directory(&tfolder).await?;
+
+        tokio::fs::File::create(ffolder.join("first.rs")).await?;
+        tokio::fs::File::create(sfolder.join("second.txt")).await?;
+        tokio::fs::File::create(sfolder.join("another_second.php")).await?;
+        tokio::fs::File::create(tfolder.join("third.c")).await?;
+
+        let res = list_files_recursive(&ffolder).await?;
+        assert_eq!(res.len(), 4);
+
+        // Errors on an non-existant path
+        assert!(
+            list_files_recursive("iDoNotExistAndNeVerWillUnlessYouIntenTionallyCreateMe")
+                .await
+                .is_err()
+        );
+
+        tokio::fs::remove_dir_all(ffolder).await?;
+
+        Ok(())
     }
 }
