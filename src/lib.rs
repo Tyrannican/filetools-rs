@@ -3,27 +3,19 @@ use async_recursion::async_recursion;
 use std::path::{Component, Path, PathBuf};
 use tokio::fs;
 
-// pub mod filehelpers;
-// pub mod filenaming;
-
 // What do we want?
 //
-// Iterate files in a directory - DONE
-// Iterate folders in a directory - DONE
+// MUST:
+// Naming helpers
+// Sync functionality of the current operations
+// Docs etc.
 //
-// Iterate files in a directory + all subdirs - DONE
-// Iterate folders in a directory + all subdirs - DONE
+// NICE:
+// Some kind of filtering for searching?
+// A higher level File type to perform some ops quicker?
 //
-// Create a directory if not exists - DONE
-//
-// Check if a directory is a subdirectory - DONE
-//
-// Pattern match on a path - DONE
-//
-// All of the above but sync (feature)
-//
-// Naming patterns
-//
+// MILES OFF:
+// File Task Manager - That operation scheduler thing
 
 #[derive(Debug, Copy, Clone, PartialEq, Eq)]
 enum FtIterItemState {
@@ -153,6 +145,7 @@ mod tests {
     ///
     /// Tempfile _would_ work but I want nested dirs and easy ways to create
     /// a series of files / folder quickly without worrying
+    /// A cheap knock-off of `Tempfile` but meh, this works kinda better for my use case
     struct TempPath {
         pub path: PathBuf,
     }
