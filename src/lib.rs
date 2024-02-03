@@ -83,6 +83,23 @@ pub async fn list_files(path: impl AsRef<Path>) -> Result<Vec<impl AsRef<Path>>>
     Ok(files)
 }
 
+pub async fn list_folders(path: impl AsRef<Path>) -> Result<Vec<impl AsRef<Path>>> {
+    anyhow::ensure!(path.as_ref().exists(), "path does not exist");
+
+    let mut folders = vec![];
+    let mut entries = fs::read_dir(path.as_ref())
+        .await
+        .context("list_folders direcrory read")?;
+
+    while let Some(entry) = entries.next_entry().await? {
+        let e_path = entry.path();
+        if e_path.is_dir() {
+            folders.push(e_path);
+        }
+    }
+    Ok(folders)
+}
+
 #[async_recursion]
 pub async fn list_files_recursive<P: AsRef<Path> + Send>(path: P) -> Result<Vec<PathBuf>> {
     anyhow::ensure!(path.as_ref().exists(), "path does not exist");
@@ -111,6 +128,31 @@ pub async fn list_files_recursive<P: AsRef<Path> + Send>(path: P) -> Result<Vec<
     }
 
     Ok(files)
+}
+
+#[async_recursion]
+pub async fn list_folders_recursive<P: AsRef<Path> + Send>(path: P) -> Result<Vec<PathBuf>> {
+    anyhow::ensure!(path.as_ref().exists(), "path does not exist");
+
+    let mut folders = vec![];
+    let mut entries = fs::read_dir(path.as_ref())
+        .await
+        .context("list_folders_recursive directory read")?;
+
+    while let Some(entry) = entries.next_entry().await? {
+        let e_path = entry.path();
+
+        if e_path.is_dir() {
+            folders.push(e_path);
+            folders.extend(
+                list_folders_recursive(e_path)
+                    .await
+                    .context("list_folders_recursive inner call"),
+            );
+        }
+    }
+
+    Ok(folders)
 }
 
 #[cfg(test)]
