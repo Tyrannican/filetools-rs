@@ -3,6 +3,8 @@ use async_recursion::async_recursion;
 use std::path::{Component, Path, PathBuf};
 use tokio::fs;
 
+pub mod naming;
+
 // pub mod filehelpers;
 // pub mod filenaming;
 
@@ -24,6 +26,14 @@ use tokio::fs;
 //
 // Naming patterns
 //
+
+#[derive(Debug, Copy, Clone, PartialEq, Eq)]
+enum FtIterItemState {
+    FileNoRec,
+    FileRec,
+    DirNoRec,
+    DirRec,
+}
 
 pub async fn create_directory(dir: impl AsRef<Path>) -> Result<()> {
     if !dir.as_ref().exists() {
@@ -60,99 +70,79 @@ pub fn path_contains(path: impl AsRef<Path>, pattern: impl AsRef<Path> /* maybe 
     false
 }
 
-pub async fn list_files(path: impl AsRef<Path>) -> Result<Vec<impl AsRef<Path>>> {
+pub async fn list_files<P: AsRef<Path> + Send>(path: P) -> Result<Vec<impl AsRef<Path>>> {
     anyhow::ensure!(path.as_ref().exists(), "path does not exist");
+    anyhow::ensure!(
+        path.as_ref().is_dir(),
+        "path should be a directory, not a file"
+    );
 
-    let mut files = vec![];
-    if path.as_ref().is_file() {
-        return Ok(files);
-    }
-
-    let mut entries = fs::read_dir(path.as_ref())
-        .await
-        .context("list_files directory read")?;
-
-    while let Some(entry) = entries.next_entry().await? {
-        let e_path = entry.path();
-
-        if e_path.is_file() {
-            files.push(e_path);
-        }
-    }
-
-    Ok(files)
+    iteritems(path, FtIterItemState::FileNoRec).await
 }
 
-pub async fn list_folders(path: impl AsRef<Path>) -> Result<Vec<impl AsRef<Path>>> {
+pub async fn list_folders<P: AsRef<Path> + Send>(path: P) -> Result<Vec<impl AsRef<Path>>> {
     anyhow::ensure!(path.as_ref().exists(), "path does not exist");
-
-    let mut folders = vec![];
-    let mut entries = fs::read_dir(path.as_ref())
-        .await
-        .context("list_folders direcrory read")?;
-
-    while let Some(entry) = entries.next_entry().await? {
-        let e_path = entry.path();
-        if e_path.is_dir() {
-            folders.push(e_path);
-        }
-    }
-    Ok(folders)
+    iteritems(path, FtIterItemState::DirNoRec).await
 }
 
 #[async_recursion]
 pub async fn list_files_recursive<P: AsRef<Path> + Send>(path: P) -> Result<Vec<PathBuf>> {
     anyhow::ensure!(path.as_ref().exists(), "path does not exist");
+    anyhow::ensure!(
+        path.as_ref().is_dir(),
+        "path should be a directory, not a file"
+    );
 
-    let mut files = vec![];
-    if path.as_ref().is_file() {
-        return Ok(files);
-    }
-
-    let mut entries = fs::read_dir(path.as_ref())
-        .await
-        .context("list_files_recursive directory read")?;
-
-    while let Some(entry) = entries.next_entry().await? {
-        let e_path = entry.path();
-
-        if e_path.is_file() {
-            files.push(e_path);
-        } else if e_path.is_dir() {
-            files.extend(
-                list_files_recursive(e_path)
-                    .await
-                    .context("recursive list_files call")?,
-            );
-        }
-    }
-
-    Ok(files)
+    iteritems(path, FtIterItemState::FileRec).await
 }
 
 #[async_recursion]
 pub async fn list_folders_recursive<P: AsRef<Path> + Send>(path: P) -> Result<Vec<PathBuf>> {
     anyhow::ensure!(path.as_ref().exists(), "path does not exist");
+    iteritems(path, FtIterItemState::DirRec).await
+}
 
-    let mut folders = vec![];
+#[async_recursion]
+async fn iteritems<P: AsRef<Path> + Send>(
+    path: P,
+    iterstate: FtIterItemState,
+) -> Result<Vec<PathBuf>> {
+    let mut items = vec![];
+
     let mut entries = fs::read_dir(path.as_ref())
         .await
-        .context("list_folders_recursive directory read")?;
+        .context("list items inner call")?;
 
     while let Some(entry) = entries.next_entry().await? {
         let e_path = entry.path();
-
-        if e_path.is_dir() {
-            folders.push(e_path.clone());
-            folders.extend(
-                list_folders_recursive(e_path)
-                    .await
-                    .context("list_folders_recursive inner call")?,
-            );
+        match iterstate {
+            FtIterItemState::FileNoRec => {
+                if e_path.is_file() {
+                    items.push(e_path);
+                }
+            }
+            FtIterItemState::FileRec => {
+                if e_path.is_file() {
+                    items.push(e_path)
+                } else if e_path.is_dir() {
+                    items.extend(iteritems(e_path, iterstate).await?);
+                }
+            }
+            FtIterItemState::DirNoRec => {
+                if e_path.is_dir() {
+                    items.push(e_path);
+                }
+            }
+            FtIterItemState::DirRec => {
+                if e_path.is_dir() {
+                    items.push(e_path.clone());
+                    items.extend(iteritems(e_path, iterstate).await?);
+                }
+            }
         }
     }
 
-    Ok(folders)
+    Ok(items)
 }
 
 #[cfg(test)]
