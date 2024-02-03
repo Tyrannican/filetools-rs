@@ -3,8 +3,6 @@ use async_recursion::async_recursion;
 use std::path::{Component, Path, PathBuf};
 use tokio::fs;
 
-pub mod naming;
-
 // pub mod filehelpers;
 // pub mod filenaming;
 
@@ -203,25 +201,25 @@ mod tests {
             Ok(())
         }
 
+        pub async fn nest_folders(&self, subfolder_chain: Vec<impl AsRef<Path>>) -> Result<Self> {
+            let mut dst_path = self.path.clone();
+            for sf in subfolder_chain {
+                dst_path = dst_path.join(sf.as_ref());
+            }
+
+            create_directory(&dst_path).await?;
+            Self::new(dst_path).await
+        }
+
         pub fn join(&self, path: impl AsRef<Path>) -> impl AsRef<Path> {
             self.path.join(path)
         }
-
-        pub async fn cleanup(self) -> Result<()> {
-            tokio::fs::remove_dir_all(&self.path).await?;
-            drop(self);
-            Ok(())
-        }
     }
 
-    // This is needed as the `tempfile` lib doesn't like nested temp dirs
-    async fn create_tmpdir(path: &str) -> Result<impl AsRef<Path>> {
-        let target = std::env::temp_dir().join(path);
-        tokio::fs::create_dir_all(&target)
-            .await
-            .context("creating tempdir")?;
-
-        Ok(target)
+    impl Drop for TempPath {
+        fn drop(&mut self) {
+            let _ = std::fs::remove_dir_all(&self.path);
+        }
     }
 
     #[tokio::test]
@@ -246,19 +244,24 @@ mod tests {
 
         assert!(nested_path.exists());
 
+        std::fs::remove_dir_all(single_path)?;
+
         Ok(())
     }
 
     #[tokio::test]
     async fn checks_if_a_directory_is_a_subdirectory() -> Result<()> {
-        let path = create_tmpdir("is_subdir/this/is/a/nested/tmp/dir")
+        let root = TempPath::new("is_subdir").await?;
+        let nested = root
+            .nest_folders(vec!["this", "is", "a", "nested", "tmp", "dir"])
+            .await?;
+        let mut result = is_subdir(&nested.path, "nested")
             .await
-            .context("creating nested tempdirs")?;
+            .context("is_subdir test")?;
 
-        let mut result = is_subdir(&path, "nested").await.context("is_subdir test")?;
         assert!(result);
 
-        result = is_subdir(&path, "not_valid")
+        result = is_subdir(&nested.path, "not_valid")
             .await
             .context("is_subdir test")?;
 
@@ -307,8 +310,6 @@ mod tests {
             .await
             .is_err());
 
-        root.cleanup().await?;
-
         Ok(())
     }
 
@@ -331,8 +332,6 @@ mod tests {
             .await
             .is_err());
 
-        root.cleanup().await?;
-
         Ok(())
     }
 
@@ -347,7 +346,6 @@ mod tests {
 
         assert!(list_folders("non-existant_path").await.is_err());
 
-        root.cleanup().await?;
         Ok(())
     }
 
@@ -366,8 +364,6 @@ mod tests {
         assert_eq!(res.len(), 7);
 
         assert!(list_folders_recursive("not-a-valId_pathd").await.is_err());
-
-        root.cleanup().await?;
 
         Ok(())
     }
