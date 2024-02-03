@@ -8,10 +8,10 @@ use tokio::fs;
 
 // What do we want?
 //
-// Iterate files in a directory
+// Iterate files in a directory - DONE
 // Iterate folders in a directory
 //
-// Iterate files in a directory + all subdirs
+// Iterate files in a directory + all subdirs - DONE
 // Iterate folders in a directory + all subdirs
 //
 // Create a directory if not exists - DONE
@@ -26,9 +26,11 @@ use tokio::fs;
 //
 
 pub async fn create_directory(dir: impl AsRef<Path>) -> Result<()> {
-    fs::create_dir_all(dir)
-        .await
-        .context("unable to create directory")?;
+    if !dir.as_ref().exists() {
+        fs::create_dir_all(dir)
+            .await
+            .context("unable to create directory")?;
+    }
 
     Ok(())
 }
@@ -92,7 +94,7 @@ pub async fn list_files_recursive<P: AsRef<Path> + Send>(path: P) -> Result<Vec<
 
     let mut entries = fs::read_dir(path.as_ref())
         .await
-        .context("list_files directory read")?;
+        .context("list_files_recursive directory read")?;
 
     while let Some(entry) = entries.next_entry().await? {
         let e_path = entry.path();
@@ -122,7 +124,6 @@ mod tests {
     /// Tempfile _would_ work but I want nested dirs and easy ways to create
     /// a series of files / folder quickly without worrying
     struct TempPath {
-        root: PathBuf,
         pub path: PathBuf,
     }
 
@@ -137,7 +138,7 @@ mod tests {
 
             create_directory(&path).await?;
 
-            Ok(Self { root, path })
+            Ok(Self { path })
         }
 
         pub async fn new_file(&self, name: impl AsRef<Path>) -> Result<Self> {
@@ -147,7 +148,7 @@ mod tests {
             Self::new(p).await
         }
 
-        pub async fn multi_files(&self, names: Vec<impl AsRef<Path>>) -> Result<()> {
+        pub async fn multi_file(&self, names: Vec<impl AsRef<Path>>) -> Result<()> {
             for name in names {
                 tokio::fs::File::create(&self.path.join(name)).await?;
             }
@@ -168,6 +169,10 @@ mod tests {
             }
 
             Ok(())
+        }
+
+        pub fn join(&self, path: impl AsRef<Path>) -> impl AsRef<Path> {
+            self.path.join(path)
         }
 
         pub async fn cleanup(self) -> Result<()> {
@@ -259,64 +264,43 @@ mod tests {
 
     #[tokio::test]
     async fn check_list_files_works() -> Result<()> {
-        let tmp = std::env::temp_dir();
-        let folder = tmp.join("list_files_example");
-        create_directory(&folder).await?;
+        let root = TempPath::new("lf_test").await?;
+        root.multi_file(vec!["first.rs", "second.c", "third.js", "fourth.rb"])
+            .await?;
 
-        tokio::fs::File::create(&folder.join("first.rs")).await?;
-        tokio::fs::File::create(&folder.join("second.txt")).await?;
-        tokio::fs::File::create(&folder.join("another_second.php")).await?;
-        tokio::fs::File::create(&folder.join("third.c")).await?;
-
-        let res = list_files(&folder).await?;
+        let res = list_files(root.path.clone()).await?;
         assert_eq!(res.len(), 4);
 
-        // Errors on non-exist
-        assert!(
-            list_files_recursive("iDoNotExistAndNeVerWillUnlessYouIntenTionallyCreateMe")
-                .await
-                .is_err()
-        );
+        assert!(list_files("IDoNotExistAsADirectoryOrShouldntAtLeAst")
+            .await
+            .is_err());
 
-        tokio::fs::remove_dir_all(&folder).await?;
+        root.cleanup().await?;
 
         Ok(())
     }
 
     #[tokio::test]
     async fn check_list_files_recursive_works() -> Result<()> {
-        let tmp = std::env::temp_dir();
-        let ffolder = tmp.join("first");
-        let sfolder = ffolder.join("second");
-        let tfolder = sfolder.join("third");
-        create_directory(&ffolder).await?;
-        create_directory(&sfolder).await?;
-        create_directory(&tfolder).await?;
+        let root = TempPath::new("lfr_test").await?;
+        let ffolder = root.new_folder("ffolder").await?;
+        let sfolder = root.new_folder("sfolder").await?;
+        let tfolder = root.new_folder("tfolder").await?;
 
-        tokio::fs::File::create(ffolder.join("first.rs")).await?;
-        tokio::fs::File::create(sfolder.join("second.txt")).await?;
-        tokio::fs::File::create(sfolder.join("another_second.php")).await?;
-        tokio::fs::File::create(tfolder.join("third.c")).await?;
+        root.new_file("initial.pdf").await?;
+        ffolder.new_file("first.rs").await?;
+        sfolder.multi_file(vec!["second.txt", "third.php"]).await?;
+        tfolder.new_file("fourth.cpp").await?;
 
-        let res = list_files_recursive(&ffolder).await?;
-        assert_eq!(res.len(), 4);
+        let res = list_files_recursive(&root.path).await?;
+        assert_eq!(res.len(), 5);
 
-        // Errors on an non-existant path
-        assert!(
-            list_files_recursive("iDoNotExistAndNeVerWillUnlessYouIntenTionallyCreateMe")
-                .await
-                .is_err()
-        );
+        assert!(list_files("IDoNotExistAsADirectoryOrShouldntAtLeAst")
+            .await
+            .is_err());
 
-        tokio::fs::remove_dir_all(ffolder).await?;
+        root.cleanup().await?;
 
-        Ok(())
-    }
-
-    #[tokio::test]
-    async fn testfile_struct() -> Result<()> {
-        // TODO: Test this temp path thing actually works
-        let tmp = TempPath::new("testpath");
         Ok(())
     }
 }
