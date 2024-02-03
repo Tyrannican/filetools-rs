@@ -9,10 +9,10 @@ use tokio::fs;
 // What do we want?
 //
 // Iterate files in a directory - DONE
-// Iterate folders in a directory
+// Iterate folders in a directory - DONE
 //
 // Iterate files in a directory + all subdirs - DONE
-// Iterate folders in a directory + all subdirs
+// Iterate folders in a directory + all subdirs - DONE
 //
 // Create a directory if not exists - DONE
 //
@@ -143,11 +143,11 @@ pub async fn list_folders_recursive<P: AsRef<Path> + Send>(path: P) -> Result<Ve
         let e_path = entry.path();
 
         if e_path.is_dir() {
-            folders.push(e_path);
+            folders.push(e_path.clone());
             folders.extend(
                 list_folders_recursive(e_path)
                     .await
-                    .context("list_folders_recursive inner call"),
+                    .context("list_folders_recursive inner call")?,
             );
         }
     }
@@ -340,6 +340,42 @@ mod tests {
         assert!(list_files("IDoNotExistAsADirectoryOrShouldntAtLeAst")
             .await
             .is_err());
+
+        root.cleanup().await?;
+
+        Ok(())
+    }
+
+    #[tokio::test]
+    async fn check_list_folders_works() -> Result<()> {
+        let root = TempPath::new("lfolder_test").await?;
+        root.multi_folder(vec!["folder1", "folder2", "folder3", "folder4"])
+            .await?;
+
+        let res = list_folders(root.path.clone()).await?;
+        assert_eq!(res.len(), 4);
+
+        assert!(list_folders("non-existant_path").await.is_err());
+
+        root.cleanup().await?;
+        Ok(())
+    }
+
+    #[tokio::test]
+    async fn check_list_folders_recursive_works() -> Result<()> {
+        let root = TempPath::new("lfolderrec_test").await?;
+        root.multi_folder(vec!["folder1", "folder2"]).await?;
+
+        let f1 = TempPath::new(root.join("folder1")).await?;
+        f1.multi_folder(vec!["sub1", "sub2", "sub3"]).await?;
+
+        let s2 = TempPath::new(f1.join("sub2")).await?;
+        s2.multi_folder(vec!["deep1", "deep2"]).await?;
+
+        let res = list_folders_recursive(root.path.clone()).await?;
+        assert_eq!(res.len(), 7);
+
+        assert!(list_folders_recursive("not-a-valId_pathd").await.is_err());
 
         root.cleanup().await?;
 
