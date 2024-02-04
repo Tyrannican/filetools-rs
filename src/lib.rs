@@ -3,6 +3,8 @@ use async_recursion::async_recursion;
 use std::path::{Component, Path, PathBuf};
 use tokio::fs;
 
+pub mod naming;
+
 // What do we want?
 //
 // MUST:
@@ -25,7 +27,7 @@ enum FtIterItemState {
     DirRec,
 }
 
-pub async fn create_directory(dir: impl AsRef<Path>) -> Result<()> {
+pub async fn ensure_directory(dir: impl AsRef<Path>) -> Result<()> {
     if !dir.as_ref().exists() {
         fs::create_dir_all(dir)
             .await
@@ -159,7 +161,7 @@ mod tests {
                 root.join(p)
             };
 
-            create_directory(&path).await?;
+            ensure_directory(&path).await?;
 
             Ok(Self { path })
         }
@@ -181,14 +183,14 @@ mod tests {
 
         pub async fn new_folder(&self, name: impl AsRef<Path>) -> Result<Self> {
             let p = self.path.join(name);
-            create_directory(&p).await?;
+            ensure_directory(&p).await?;
 
             Self::new(p).await
         }
 
         pub async fn multi_folder(&self, names: Vec<impl AsRef<Path>>) -> Result<()> {
             for name in names {
-                create_directory(&self.path.join(name)).await?;
+                ensure_directory(&self.path.join(name)).await?;
             }
 
             Ok(())
@@ -200,7 +202,7 @@ mod tests {
                 dst_path = dst_path.join(sf.as_ref());
             }
 
-            create_directory(&dst_path).await?;
+            ensure_directory(&dst_path).await?;
             Self::new(dst_path).await
         }
 
@@ -223,7 +225,7 @@ mod tests {
 
         // Creates a single directory
         let single_path = tmp.join("create_dir");
-        create_directory(&single_path)
+        ensure_directory(&single_path)
             .await
             .context("create directory single")?;
 
@@ -231,7 +233,7 @@ mod tests {
 
         // Nested directories
         let nested_path = tmp.join("create_dir/test/this/is/nested");
-        create_directory(&nested_path)
+        ensure_directory(&nested_path)
             .await
             .context("create directory nested")?;
 
