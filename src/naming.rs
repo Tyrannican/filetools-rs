@@ -25,11 +25,22 @@ use chrono::prelude::*;
 use std::path::PathBuf;
 use uuid::Uuid;
 
+/// Helper for makeing extensions
+///
+/// Literally just preprends a .
+fn make_extension(ext: impl AsRef<str>) -> String {
+    if ext.as_ref().is_empty() {
+        return String::new();
+    }
+
+    format!(".{}", ext.as_ref())
+}
+
 /// Generates a `PathBuf` from a given and extension
 ///
 /// Returns a `PathBuf` of the form `name.ext`
 pub fn generate_name(name: &str, ext: &str) -> PathBuf {
-    PathBuf::from(format!("{}.{}", name, ext))
+    PathBuf::from(format!("{}{}", name, make_extension(ext)))
 }
 
 /// Generates a `PathBuf` from a name and extention with a default timestamp of "DD_MM_YY_HHMMSS"
@@ -40,10 +51,10 @@ pub fn generate_timestamped_name(fname: &str, ext: &str) -> PathBuf {
     let dt = UTC::now().format("%d_%m_%Y_%Hh%Mm%Ss");
 
     if fname.len() == 0 {
-        return PathBuf::from(format!("{}.{}", dt, ext));
+        return PathBuf::from(format!("{}{}", dt, make_extension(ext)));
     }
 
-    PathBuf::from(format!("{}_{}.{}", fname, dt, ext))
+    PathBuf::from(format!("{}_{}{}", fname, dt, make_extension(ext)))
 }
 
 /// Generates a random UUIDv4 `PathBuf`
@@ -52,14 +63,19 @@ pub fn generate_timestamped_name(fname: &str, ext: &str) -> PathBuf {
 pub fn generate_random_name(ext: &str) -> PathBuf {
     let unique = Uuid::new_v4();
 
-    PathBuf::from(format!("{}.{}", unique.to_string(), ext))
+    PathBuf::from(format!("{}{}", unique.to_string(), make_extension(ext)))
 }
 
 /// Generates a `PathBuf` from a `number` prefixed by `n_digits` zeros
 ///
 /// Returns `PathBuf` of the form e.g `0005.ext`
 pub fn generate_n_digit_name(number: i32, n_digits: usize, ext: &str) -> PathBuf {
-    PathBuf::from(format!("{:0fill$}.{}", number, ext, fill = n_digits))
+    PathBuf::from(format!(
+        "{:0fill$}{}",
+        number,
+        make_extension(ext),
+        fill = n_digits
+    ))
 }
 
 #[cfg(test)]
@@ -86,9 +102,8 @@ mod naming_tests {
     #[test]
     // Don't judge me on regex...
     fn generates_timestamped_name_ok() {
-        let ts_re = Regex::new(r"(.*)_\d{2}_\d{2}_\d{4}_\d{2}h\d{2}m\d{2}s\.(.*)").unwrap();
+        let ts_re = Regex::new(r"(.*)_\d{2}_\d{2}_\d{4}_\d{2}h\d{2}m\d{2}s").unwrap();
         let ts_name = generate_timestamped_name("with_filename", "txt");
-        eprintln!("Testname: {ts_name:?}");
 
         // Pathbuf checks need the full path component
         let ts_name = ts_name.to_str().unwrap();
@@ -96,7 +111,7 @@ mod naming_tests {
         assert!(ts_re.is_match(ts_name));
         assert!(ts_name.ends_with(".txt"));
 
-        let no_prefix_re = Regex::new(r"\d{2}_\d{2}_\d{4}_\d{2}h\d{2}m\d{2}s\.(.*)").unwrap();
+        let no_prefix_re = Regex::new(r"\d{2}_\d{2}_\d{4}_\d{2}h\d{2}m\d{2}s").unwrap();
         let no_prefix = generate_timestamped_name("", "pdf");
 
         let no_prefix = no_prefix.to_str().unwrap();
@@ -106,7 +121,11 @@ mod naming_tests {
 
     #[test]
     fn checks_random_names_are_ok() {
+        let uuid_re =
+            Regex::new(r"[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[0-9a-f]{4}-[0-9a-f]{12}").unwrap();
         let rn = generate_random_name("json");
-        // TODO: Add regex test to match UUIDv4 Pattern
+        let rn_name = rn.to_str().unwrap();
+        assert!(uuid_re.is_match(rn_name));
+        assert!(rn_name.ends_with(".json"));
     }
 }
