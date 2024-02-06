@@ -1,8 +1,24 @@
+//! Sync variations of the main [`crate`] functions
 use crate::{naming::generate_n_digit_name, FtIterItemState};
 use anyhow::{Context, Result};
 use std::fs;
 use std::path::{Path, PathBuf};
 
+/// Creates a directory at the given path.
+///
+/// If the directory already exists, nothing is done
+///
+/// This is the sync version of [`crate::ensure_directory`]
+///
+/// # Example
+///
+/// ```rust,no_run
+/// use filetools::sync::ensure_directory;
+///
+/// let target_path = "directory/to/create";
+/// ensure_directory(target_path).expect("unable to create directory");
+///
+/// ```
 pub fn ensure_directory(dir: impl AsRef<Path>) -> Result<()> {
     if !dir.as_ref().exists() {
         fs::create_dir_all(dir).context("unable to create directory")?;
@@ -35,7 +51,7 @@ pub fn create_numeric_directories(
     Ok(())
 }
 
-pub fn list_folders<P: AsRef<Path>>(path: P) -> Result<Vec<impl AsRef<Path>>> {
+pub fn list_directories<P: AsRef<Path>>(path: P) -> Result<Vec<impl AsRef<Path>>> {
     anyhow::ensure!(path.as_ref().exists(), "path does not exist");
     iteritems(path, FtIterItemState::DirNoRec)
 }
@@ -50,7 +66,7 @@ pub fn list_files_recursive<P: AsRef<Path>>(path: P) -> Result<Vec<PathBuf>> {
     iteritems(path, FtIterItemState::FileRec)
 }
 
-pub fn list_folders_recursive<P: AsRef<Path> + Send>(path: P) -> Result<Vec<PathBuf>> {
+pub fn list_directories_recursive<P: AsRef<Path> + Send>(path: P) -> Result<Vec<PathBuf>> {
     anyhow::ensure!(path.as_ref().exists(), "path does not exist");
     iteritems(path, FtIterItemState::DirRec)
 }

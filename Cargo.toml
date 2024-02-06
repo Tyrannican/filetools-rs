@@ -18,5 +18,5 @@ tokio = { version = "1.35.1", features = ["fs"] }
 uuid = { version = "0.8.1", features = ["v4"]}
 
 [dev-dependencies]
-tokio = { version = "1.35.1", features = ["macros", "rt"] }
+tokio = { version = "1.35.1", features = ["macros", "rt-multi-thread"] }
 regex = "1.10.3"

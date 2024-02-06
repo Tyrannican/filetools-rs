@@ -1,3 +1,6 @@
+//! Crate to help with simple file / folder operations
+//!
+//! TODO: More Docs!
 use anyhow::{Context, Result};
 use async_recursion::async_recursion;
 use std::path::{Component, Path, PathBuf};
@@ -10,8 +13,6 @@ pub mod sync;
 // What do we want?
 //
 // MUST:
-// Naming helpers
-// Sync functionality of the current operations
 // Docs etc.
 //
 // NICE:
@@ -21,14 +22,37 @@ pub mod sync;
 // MILES OFF:
 // File Task Manager - That operation scheduler thing
 
+/// Determines the type of iteration performed by the `list_directories` and `list_files` functions
+/// If the NoRec variation is used, only the current directory is considered
+/// If the Rec variation is used, then ALL subdirectores are traversed
 #[derive(Debug, Copy, Clone, PartialEq, Eq)]
 pub(crate) enum FtIterItemState {
+    /// Iterate files with no recursion
     FileNoRec,
+
+    /// Iterate files with recursion
     FileRec,
+
+    /// Iterate directories with no recursion
     DirNoRec,
+
+    /// Iterate directories with recursion
     DirRec,
 }
 
+/// Checks if a given pattern is considered a subdirectory of the given path
+///
+/// # Example
+///
+/// ```rust
+/// use filetools::is_subdir;
+///
+/// let path = "directory/to/check/for/sub/directory";
+/// let check = "for";
+///
+/// // As "for" is a subdirectory in this path, this returns true
+/// let result = is_subdir(path, check);
+/// ```
 pub fn is_subdir(path: impl AsRef<Path>, dir: impl AsRef<Path>) -> bool {
     for component in path.as_ref().components() {
         match component {
@@ -44,6 +68,21 @@ pub fn is_subdir(path: impl AsRef<Path>, dir: impl AsRef<Path>) -> bool {
     false
 }
 
+/// Determines if a path contains a given pattern
+///
+/// Converts both the path and the pattern to a string and performs simple matching
+///
+/// # Example
+///
+/// ```rust
+/// use filetools::path_contains;
+///
+/// let path = "This/is/a/path/with/a/file.txt";
+/// let pattern = "file.txt";
+///
+/// // The path contains the pattern file.txt so this returns true
+/// let result = path_contains(path, pattern);
+/// ```
 pub fn path_contains(path: impl AsRef<Path>, pattern: impl AsRef<Path> /* maybe */) -> bool {
     if let Some(p) = path.as_ref().to_str() {
         if let Some(pat) = pattern.as_ref().to_str() {
@@ -54,6 +93,23 @@ pub fn path_contains(path: impl AsRef<Path>, pattern: impl AsRef<Path> /* maybe 
     false
 }
 
+/// Creates a directory at the given path.
+///
+/// If the directory already exists, nothing is done
+///
+/// # Example
+///
+/// ```rust,no_run
+/// use filetools::ensure_directory;
+///
+/// #[tokio::main]
+/// async fn main() -> anyhow::Result<()> {
+///     let target_path = "directory/to/create";
+///     ensure_directory(target_path).await?;
+///
+///     Ok(())
+/// }
+/// ```
 pub async fn ensure_directory(dir: impl AsRef<Path>) -> Result<()> {
     if !dir.as_ref().exists() {
         fs::create_dir_all(dir)
@@ -64,6 +120,28 @@ pub async fn ensure_directory(dir: impl AsRef<Path>) -> Result<()> {
     Ok(())
 }
 
+/// Creates a range of numeric folders in the given path starting from `start`
+/// up to `end` (non-inclusive).
+///
+/// Directories can be padded with X zeros using the `fill` parameter.
+///
+/// # Example
+///
+/// ```rust,no_run
+/// use filetools::create_numeric_directories;
+///
+/// #[tokio::main]
+/// async fn main() -> anyhow::Result<()> {
+///     let root = "some/root/path";
+///     
+///     // This will create the following directories:
+///     // "some/root/path/0000"
+///     // ...
+///     // "some/root/path/0099"
+///     create_numeric_directories(root, 0, 100, 4).await?;
+///     Ok(())
+/// }
+/// ```
 pub async fn create_numeric_directories(
     path: impl AsRef<Path>,
     start: usize,
@@ -82,6 +160,29 @@ pub async fn create_numeric_directories(
     Ok(())
 }
 
+/// Lists all files in the given directory (not including subdirectories).
+///
+/// # Errors
+///
+/// This function will return an error in the following situations:
+///
+/// * The path given is a file and not a directory
+/// * The given path does not exist
+///
+/// # Example
+///
+/// ```rust,no_run
+/// use filetools::list_files;
+///
+/// #[tokio::main]
+/// async fn main() -> anyhow::Result<()> {
+///     let target_folder = "folder/containing/files";
+///
+///     // Will return a Vec containing all files in the folder
+///     let files = list_files(target_folder).await?;
+///     Ok(())
+/// }
+/// ```
 pub async fn list_files<P: AsRef<Path> + Send>(path: P) -> Result<Vec<PathBuf>> {
     anyhow::ensure!(path.as_ref().exists(), "path does not exist");
     anyhow::ensure!(
@@ -92,11 +193,57 @@ pub async fn list_files<P: AsRef<Path> + Send>(path: P) -> Result<Vec<PathBuf>> 
     iteritems(path, FtIterItemState::FileNoRec).await
 }
 
-pub async fn list_folders<P: AsRef<Path> + Send>(path: P) -> Result<Vec<PathBuf>> {
+/// Lists all directories in the given directory (not including subdirectories).
+///
+/// # Errors
+///
+/// This function will return an error in the following situations:
+///
+/// * The given path does not exist
+///
+/// # Example
+///
+/// ```rust,no_run
+/// use filetools::list_directories;
+///
+/// #[tokio::main]
+/// async fn main() -> anyhow::Result<()> {
+///     let target_folder = "directory/containing/other/directories";
+///
+///     // Will return a Vec containing all directories in the folder
+///     let directories = list_directories(target_folder).await?;
+///     Ok(())
+/// }
+/// ```
+pub async fn list_directories<P: AsRef<Path> + Send>(path: P) -> Result<Vec<PathBuf>> {
     anyhow::ensure!(path.as_ref().exists(), "path does not exist");
     iteritems(path, FtIterItemState::DirNoRec).await
 }
 
+/// Lists all files in a directory including ALL subdirectories
+///
+/// # Errors
+///
+/// This function will return an error in the following situations:
+///
+/// * The given path is a file and not a directory
+/// * The given path does not exist
+///
+/// # Example
+///
+/// ```rust,no_run
+/// use filetools::list_files_recursive;
+///
+/// #[tokio::main]
+/// async fn main() -> anyhow::Result<()> {
+///     let target_folder = "directory/containing/nested/files";
+///
+///     // This will return a Vec of ALL files contained within the directory
+///     // (including in all subdirectories)
+///     let files = list_files_recursive(target_folder).await?;
+///     Ok(())
+/// }
+/// ```
 #[async_recursion]
 pub async fn list_files_recursive<P: AsRef<Path> + Send>(path: P) -> Result<Vec<PathBuf>> {
     anyhow::ensure!(path.as_ref().exists(), "path does not exist");
@@ -108,12 +255,37 @@ pub async fn list_files_recursive<P: AsRef<Path> + Send>(path: P) -> Result<Vec<
     iteritems(path, FtIterItemState::FileRec).await
 }
 
+/// Lists all directories in a directory including ALL subdirectories
+///
+/// # Errors
+///
+/// This function will return an error in the following situations:
+///
+/// * The given path does not exist
+///
+/// # Example
+///
+/// ```rust,no_run
+/// use filetools::list_directories_recursive;
+///
+/// #[tokio::main]
+/// async fn main() -> anyhow::Result<()> {
+///     let target_folder = "directory/containing/nested/files";
+///
+///     // This will return a Vec of ALL directories contained within the directory
+///     // (including in all subdirectories)
+///     let directories = list_directories_recursive(target_folder).await?;
+///     Ok(())
+/// }
+/// ```
 #[async_recursion]
-pub async fn list_folders_recursive<P: AsRef<Path> + Send>(path: P) -> Result<Vec<PathBuf>> {
+pub async fn list_directories_recursive<P: AsRef<Path> + Send>(path: P) -> Result<Vec<PathBuf>> {
     anyhow::ensure!(path.as_ref().exists(), "path does not exist");
     iteritems(path, FtIterItemState::DirRec).await
 }
 
+/// Helper function to iterate through a directory to find all Files / Directories
+/// depending on the `FilterState` passed.
 #[async_recursion]
 async fn iteritems<P: AsRef<Path> + Send>(
     path: P,
@@ -347,21 +519,21 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn check_list_folders_works() -> Result<()> {
+    async fn check_list_directories_works() -> Result<()> {
         let root = TempPath::new("lfolder_test").await?;
         root.multi_folder(vec!["folder1", "folder2", "folder3", "folder4"])
             .await?;
 
-        let res = list_folders(root.path.clone()).await?;
+        let res = list_directories(root.path.clone()).await?;
         assert_eq!(res.len(), 4);
 
-        assert!(list_folders("non-existant_path").await.is_err());
+        assert!(list_directories("non-existant_path").await.is_err());
 
         Ok(())
     }
 
     #[tokio::test]
-    async fn check_list_folders_recursive_works() -> Result<()> {
+    async fn check_list_directories_recursive_works() -> Result<()> {
         let root = TempPath::new("lfolderrec_test").await?;
         root.multi_folder(vec!["folder1", "folder2"]).await?;
 
@@ -371,10 +543,12 @@ mod tests {
         let s2 = TempPath::new(f1.join("sub2")).await?;
         s2.multi_folder(vec!["deep1", "deep2"]).await?;
 
-        let res = list_folders_recursive(root.path.clone()).await?;
+        let res = list_directories_recursive(root.path.clone()).await?;
         assert_eq!(res.len(), 7);
 
-        assert!(list_folders_recursive("not-a-valId_pathd").await.is_err());
+        assert!(list_directories_recursive("not-a-valId_pathd")
+            .await
+            .is_err());
 
         Ok(())
     }
@@ -383,7 +557,7 @@ mod tests {
     async fn numeric_directories() -> Result<()> {
         let tmp = TempPath::new("numeric_directories").await?;
         create_numeric_directories(&tmp.path, 0, 100, 4).await?;
-        let mut folders = list_folders(&tmp.path).await?;
+        let mut folders = list_directories(&tmp.path).await?;
         folders.sort();
         assert_eq!(folders.len(), 100);
 
