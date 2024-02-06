@@ -3,7 +3,9 @@ use async_recursion::async_recursion;
 use std::path::{Component, Path, PathBuf};
 use tokio::fs;
 
+pub mod file;
 pub mod naming;
+pub mod sync;
 
 // What do we want?
 //
@@ -20,7 +22,7 @@ pub mod naming;
 // File Task Manager - That operation scheduler thing
 
 #[derive(Debug, Copy, Clone, PartialEq, Eq)]
-enum FtIterItemState {
+pub(crate) enum FtIterItemState {
     FileNoRec,
     FileRec,
     DirNoRec,
@@ -37,19 +39,19 @@ pub async fn ensure_directory(dir: impl AsRef<Path>) -> Result<()> {
     Ok(())
 }
 
-pub async fn is_subdir(path: impl AsRef<Path>, dir: impl AsRef<Path>) -> Result<bool> {
+pub fn is_subdir(path: impl AsRef<Path>, dir: impl AsRef<Path>) -> bool {
     for component in path.as_ref().components() {
         match component {
             Component::Normal(p) => {
                 if p == dir.as_ref().as_os_str() {
-                    return Ok(true);
+                    return true;
                 }
             }
             _ => {}
         }
     }
 
-    Ok(false)
+    false
 }
 
 pub fn path_contains(path: impl AsRef<Path>, pattern: impl AsRef<Path> /* maybe */) -> bool {
@@ -250,15 +252,11 @@ mod tests {
         let nested = root
             .nest_folders(vec!["this", "is", "a", "nested", "tmp", "dir"])
             .await?;
-        let mut result = is_subdir(&nested.path, "nested")
-            .await
-            .context("is_subdir test")?;
+        let mut result = is_subdir(&nested.path, "nested");
 
         assert!(result);
 
-        result = is_subdir(&nested.path, "not_valid")
-            .await
-            .context("is_subdir test")?;
+        result = is_subdir(&nested.path, "not_valid");
 
         assert!(!result);
         Ok(())

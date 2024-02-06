@@ -1,0 +1,83 @@
+use crate::FtIterItemState;
+use anyhow::{Context, Result};
+use std::fs;
+use std::path::{Path, PathBuf};
+
+pub fn ensure_directory(dir: impl AsRef<Path>) -> Result<()> {
+    if !dir.as_ref().exists() {
+        fs::create_dir_all(dir).context("unable to create directory")?;
+    }
+
+    Ok(())
+}
+
+pub fn list_files<P: AsRef<Path>>(path: P) -> Result<Vec<impl AsRef<Path>>> {
+    anyhow::ensure!(path.as_ref().exists(), "path does not exist");
+    anyhow::ensure!(
+        path.as_ref().is_dir(),
+        "path should be a directory, not a file"
+    );
+
+    iteritems(path, FtIterItemState::FileNoRec)
+}
+
+pub fn list_folders<P: AsRef<Path>>(path: P) -> Result<Vec<impl AsRef<Path>>> {
+    anyhow::ensure!(path.as_ref().exists(), "path does not exist");
+    iteritems(path, FtIterItemState::DirNoRec)
+}
+
+pub fn list_files_recursive<P: AsRef<Path>>(path: P) -> Result<Vec<PathBuf>> {
+    anyhow::ensure!(path.as_ref().exists(), "path does not exist");
+    anyhow::ensure!(
+        path.as_ref().is_dir(),
+        "path should be a directory, not a file"
+    );
+
+    iteritems(path, FtIterItemState::FileRec)
+}
+
+pub fn list_folders_recursive<P: AsRef<Path> + Send>(path: P) -> Result<Vec<PathBuf>> {
+    anyhow::ensure!(path.as_ref().exists(), "path does not exist");
+    iteritems(path, FtIterItemState::DirRec)
+}
+
+fn iteritems<P: AsRef<Path>>(path: P, iterstate: FtIterItemState) -> Result<Vec<PathBuf>> {
+    let mut items = vec![];
+
+    let mut entries = fs::read_dir(path.as_ref()).context("list items inner call")?;
+
+    while let Some(Ok(entry)) = entries.next() {
+        let e_path = entry.path();
+        match iterstate {
+            FtIterItemState::FileNoRec => {
+                if e_path.is_file() {
+                    items.push(e_path);
+                }
+            }
+            FtIterItemState::FileRec => {
+                if e_path.is_file() {
+                    items.push(e_path)
+                } else if e_path.is_dir() {
+                    items.extend(iteritems(e_path, iterstate)?);
+                }
+            }
+            FtIterItemState::DirNoRec => {
+                if e_path.is_dir() {
+                    items.push(e_path);
+                }
+            }
+            FtIterItemState::DirRec => {
+                if e_path.is_dir() {
+                    items.push(e_path.clone());
+                    items.extend(iteritems(e_path, iterstate)?);
+                }
+            }
+        }
+    }
+
+    Ok(items)
+}
+
+// Do I write tests for these as they are just the sync version of the Ft functions
+// which already pass...?
+// TODO: Maybe tests?
