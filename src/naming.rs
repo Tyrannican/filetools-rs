@@ -50,7 +50,7 @@ pub fn generate_name(name: &str, ext: &str) -> PathBuf {
 pub fn generate_timestamped_name(fname: &str, ext: &str) -> PathBuf {
     let dt = UTC::now().format("%d_%m_%Y_%Hh%Mm%Ss");
 
-    if fname.len() == 0 {
+    if fname.is_empty() {
         return PathBuf::from(format!("{}{}", dt, make_extension(ext)));
     }
 
@@ -69,12 +69,12 @@ pub fn generate_random_name(ext: &str) -> PathBuf {
 /// Generates a `PathBuf` from a `number` prefixed by `n_digits` zeros
 ///
 /// Returns `PathBuf` of the form e.g `0005.ext`
-pub fn generate_n_digit_name(number: i32, n_digits: usize, ext: &str) -> PathBuf {
+pub fn generate_n_digit_name(number: usize, fill: usize, ext: &str) -> PathBuf {
     PathBuf::from(format!(
         "{:0fill$}{}",
         number,
         make_extension(ext),
-        fill = n_digits
+        fill = fill
     ))
 }
 

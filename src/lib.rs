@@ -29,16 +29,6 @@ pub(crate) enum FtIterItemState {
     DirRec,
 }
 
-pub async fn ensure_directory(dir: impl AsRef<Path>) -> Result<()> {
-    if !dir.as_ref().exists() {
-        fs::create_dir_all(dir)
-            .await
-            .context("unable to create directory")?;
-    }
-
-    Ok(())
-}
-
 pub fn is_subdir(path: impl AsRef<Path>, dir: impl AsRef<Path>) -> bool {
     for component in path.as_ref().components() {
         match component {
@@ -64,7 +54,35 @@ pub fn path_contains(path: impl AsRef<Path>, pattern: impl AsRef<Path> /* maybe 
     false
 }
 
-pub async fn list_files<P: AsRef<Path> + Send>(path: P) -> Result<Vec<impl AsRef<Path>>> {
+pub async fn ensure_directory(dir: impl AsRef<Path>) -> Result<()> {
+    if !dir.as_ref().exists() {
+        fs::create_dir_all(dir)
+            .await
+            .context("unable to create directory")?;
+    }
+
+    Ok(())
+}
+
+pub async fn create_numeric_directories(
+    path: impl AsRef<Path>,
+    start: usize,
+    end: usize,
+    fill: usize,
+) -> Result<()> {
+    for i in start..end {
+        let name = path
+            .as_ref()
+            .join(naming::generate_n_digit_name(i, fill, ""));
+        ensure_directory(name)
+            .await
+            .context("creating numeric directories")?;
+    }
+
+    Ok(())
+}
+
+pub async fn list_files<P: AsRef<Path> + Send>(path: P) -> Result<Vec<PathBuf>> {
     anyhow::ensure!(path.as_ref().exists(), "path does not exist");
     anyhow::ensure!(
         path.as_ref().is_dir(),
@@ -74,7 +92,7 @@ pub async fn list_files<P: AsRef<Path> + Send>(path: P) -> Result<Vec<impl AsRef
     iteritems(path, FtIterItemState::FileNoRec).await
 }
 
-pub async fn list_folders<P: AsRef<Path> + Send>(path: P) -> Result<Vec<impl AsRef<Path>>> {
+pub async fn list_folders<P: AsRef<Path> + Send>(path: P) -> Result<Vec<PathBuf>> {
     anyhow::ensure!(path.as_ref().exists(), "path does not exist");
     iteritems(path, FtIterItemState::DirNoRec).await
 }
@@ -357,6 +375,22 @@ mod tests {
         assert_eq!(res.len(), 7);
 
         assert!(list_folders_recursive("not-a-valId_pathd").await.is_err());
+
+        Ok(())
+    }
+
+    #[tokio::test]
+    async fn numeric_directories() -> Result<()> {
+        let tmp = TempPath::new("numeric_directories").await?;
+        create_numeric_directories(&tmp.path, 0, 100, 4).await?;
+        let mut folders = list_folders(&tmp.path).await?;
+        folders.sort();
+        assert_eq!(folders.len(), 100);
+
+        for (i, folder) in folders.into_iter().enumerate() {
+            let test = &tmp.path.join(format!("{:0fill$}", i, fill = 4));
+            assert_eq!(&folder, test);
+        }
 
         Ok(())
     }

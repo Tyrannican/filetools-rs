@@ -1,4 +1,4 @@
-use crate::FtIterItemState;
+use crate::{naming::generate_n_digit_name, FtIterItemState};
 use anyhow::{Context, Result};
 use std::fs;
 use std::path::{Path, PathBuf};
@@ -19,6 +19,20 @@ pub fn list_files<P: AsRef<Path>>(path: P) -> Result<Vec<impl AsRef<Path>>> {
     );
 
     iteritems(path, FtIterItemState::FileNoRec)
+}
+
+pub fn create_numeric_directories(
+    path: impl AsRef<Path>,
+    start: usize,
+    end: usize,
+    fill: usize,
+) -> Result<()> {
+    for i in start..end {
+        let name = path.as_ref().join(generate_n_digit_name(i, fill, ""));
+        ensure_directory(name).context("creating numeric directories")?;
+    }
+
+    Ok(())
 }
 
 pub fn list_folders<P: AsRef<Path>>(path: P) -> Result<Vec<impl AsRef<Path>>> {
