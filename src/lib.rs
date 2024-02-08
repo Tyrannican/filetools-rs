@@ -8,32 +8,17 @@
 //! * Generate names for files / directories
 //!
 //! TODO: More Docs!
+pub mod naming;
+pub mod sync;
+pub(crate) mod util;
+
 use anyhow::{Context, Result};
 use async_recursion::async_recursion;
 use regex::Regex;
 use std::path::{Component, Path, PathBuf};
 use tokio::fs;
 
-pub mod naming;
-pub mod sync;
-
-/// Determines the type of iteration performed by the `list_directories` and `list_files` functions
-/// If the NoRec variation is used, only the current directory is considered
-/// If the Rec variation is used, then ALL subdirectores are traversed
-#[derive(Debug, Copy, Clone, PartialEq, Eq)]
-pub(crate) enum FtIterItemState {
-    /// Iterate files with no recursion
-    FileNoRec,
-
-    /// Iterate files with recursion
-    FileRec,
-
-    /// Iterate directories with no recursion
-    DirNoRec,
-
-    /// Iterate directories with recursion
-    DirRec,
-}
+use util::FtIterItemState;
 
 #[derive(Debug)]
 pub enum FtFilter {
@@ -416,80 +401,7 @@ mod tests {
     use super::*;
     use anyhow::{Context, Result};
     use std::path::PathBuf;
-
-    /// Helper for creating temp directories
-    ///
-    /// Tempfile _would_ work but I want nested dirs and easy ways to create
-    /// a series of files / folder quickly without worrying
-    /// A cheap knock-off of `Tempfile` but meh, this works kinda better for my use case
-    struct TempPath {
-        pub path: PathBuf,
-    }
-
-    impl TempPath {
-        pub async fn new(p: impl AsRef<Path>) -> Result<Self> {
-            let root = std::env::temp_dir();
-            let path = if p.as_ref().starts_with(&root) {
-                p.as_ref().to_path_buf()
-            } else {
-                root.join(p)
-            };
-
-            ensure_directory(&path).await?;
-
-            Ok(Self { path })
-        }
-
-        pub async fn new_file(&self, name: impl AsRef<Path>) -> Result<Self> {
-            let p = self.path.join(name);
-            tokio::fs::File::create(&p).await?;
-
-            Self::new(p).await
-        }
-
-        pub async fn multi_file(&self, names: Vec<impl AsRef<Path>>) -> Result<()> {
-            for name in names {
-                tokio::fs::File::create(&self.path.join(name)).await?;
-            }
-
-            Ok(())
-        }
-
-        pub async fn new_folder(&self, name: impl AsRef<Path>) -> Result<Self> {
-            let p = self.path.join(name);
-            ensure_directory(&p).await?;
-
-            Self::new(p).await
-        }
-
-        pub async fn multi_folder(&self, names: Vec<impl AsRef<Path>>) -> Result<()> {
-            for name in names {
-                ensure_directory(&self.path.join(name)).await?;
-            }
-
-            Ok(())
-        }
-
-        pub async fn nest_folders(&self, subfolder_chain: Vec<impl AsRef<Path>>) -> Result<Self> {
-            let mut dst_path = self.path.clone();
-            for sf in subfolder_chain {
-                dst_path = dst_path.join(sf.as_ref());
-            }
-
-            ensure_directory(&dst_path).await?;
-            Self::new(dst_path).await
-        }
-
-        pub fn join(&self, path: impl AsRef<Path>) -> impl AsRef<Path> {
-            self.path.join(path)
-        }
-    }
-
-    impl Drop for TempPath {
-        fn drop(&mut self) {
-            let _ = std::fs::remove_dir_all(&self.path);
-        }
-    }
+    use util::TempPath;
 
     #[tokio::test]
     // This is kind of redundant as it just wraps `tokio::fs::create_dir_all`
