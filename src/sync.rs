@@ -27,16 +27,26 @@ pub fn ensure_directory(dir: impl AsRef<Path>) -> Result<()> {
     Ok(())
 }
 
-pub fn list_files<P: AsRef<Path>>(path: P) -> Result<Vec<impl AsRef<Path>>> {
-    anyhow::ensure!(path.as_ref().exists(), "path does not exist");
-    anyhow::ensure!(
-        path.as_ref().is_dir(),
-        "path should be a directory, not a file"
-    );
-
-    iteritems(path, FtIterItemState::FileNoRec)
-}
-
+/// Creates a range of numeric folders in the given path starting from `start`
+/// up to `end` (non-inclusive).
+///
+/// Directories can be padded with X zeros using the `fill` parameter.
+///
+/// This is the sync version of [`crate::create_numeric_directories`]
+///
+/// # Example
+///
+/// ```rust,no_run
+/// use filetools::sync::create_numeric_directories;
+///
+/// let root = "some/root/path";
+///
+/// // This will create the following directories:
+/// // "some/root/path/0000"
+/// // ...
+/// // "some/root/path/0099"
+/// create_numeric_directories(root, 0, 100, 4).expect("unable to create numeric directories");
+/// ```
 pub fn create_numeric_directories(
     path: impl AsRef<Path>,
     start: usize,
@@ -51,11 +61,82 @@ pub fn create_numeric_directories(
     Ok(())
 }
 
+/// Lists all files in the given directory (not including subdirectories).
+///
+/// # Errors
+///
+/// This function will return an error in the following situations:
+///
+/// * The path given is a file and not a directory
+/// * The given path does not exist
+///
+/// # Example
+///
+/// ```rust,no_run
+/// use filetools::sync::list_files;
+///
+/// let target_dir = "some/dir/containing/files";
+///
+/// // Will return a Vec containing paths to all files in the directory
+/// let files = list_files(target_dir).expect("unable to list files");
+/// ```
+pub fn list_files<P: AsRef<Path>>(path: P) -> Result<Vec<impl AsRef<Path>>> {
+    anyhow::ensure!(path.as_ref().exists(), "path does not exist");
+    anyhow::ensure!(
+        path.as_ref().is_dir(),
+        "path should be a directory, not a file"
+    );
+
+    iteritems(path, FtIterItemState::FileNoRec)
+}
+
+/// Lists all directories in the given directory (not including subdirectories).
+///
+/// # Errors
+///
+/// This function will return an error in the following situations:
+///
+/// * The path given is a file and not a directory
+/// * The given path does not exist
+///
+/// # Example
+///
+/// ```rust,no_run
+/// use filetools::sync::list_directories;
+///
+/// let target_dir = "some/dir/containing/files";
+///
+/// // Will return a Vec containing paths to all directories in the directory
+/// let dirs = list_directories(target_dir).expect("unable to list directories");
+/// ```
 pub fn list_directories<P: AsRef<Path>>(path: P) -> Result<Vec<impl AsRef<Path>>> {
     anyhow::ensure!(path.as_ref().exists(), "path does not exist");
+    anyhow::ensure!(
+        path.as_ref().is_dir(),
+        "path should be a directory, not a file"
+    );
     iteritems(path, FtIterItemState::DirNoRec)
 }
 
+/// Lists all files in a directory including ALL subdirectories
+///
+/// # Errors
+///
+/// This function will return an error in the following situations:
+///
+/// * The given path is a file and not a directory
+/// * The given path does not exist
+///
+/// # Example
+///
+/// ```rust,no_run
+/// use filetools::sync::list_files_recursive;
+///
+/// let target_dir = "some/dir/containing/nested/files";
+///
+/// // Will return a Vec containing all files in the directory (including all subdirectories)
+/// let files = list_files_recursive(target_dir).expect("unable to list files recursively");
+/// ```
 pub fn list_files_recursive<P: AsRef<Path>>(path: P) -> Result<Vec<PathBuf>> {
     anyhow::ensure!(path.as_ref().exists(), "path does not exist");
     anyhow::ensure!(
@@ -66,8 +147,31 @@ pub fn list_files_recursive<P: AsRef<Path>>(path: P) -> Result<Vec<PathBuf>> {
     iteritems(path, FtIterItemState::FileRec)
 }
 
+/// Lists all directories in a directory including ALL subdirectories
+///
+/// # Errors
+///
+/// This function will return an error in the following situations:
+///
+/// * The given path is a file and not a directory
+/// * The given path does not exist
+///
+/// # Example
+///
+/// ```rust,no_run
+/// use filetools::sync::list_directories_recursive;
+///
+/// let target_dir = "some/dir/containing/nested/files";
+///
+/// // Will return a Vec containing all directories in the directory (including all subdirectories)
+/// let dirs = list_directories_recursive(target_dir).expect("unable to list directories recursively");
+/// ```
 pub fn list_directories_recursive<P: AsRef<Path> + Send>(path: P) -> Result<Vec<PathBuf>> {
     anyhow::ensure!(path.as_ref().exists(), "path does not exist");
+    anyhow::ensure!(
+        path.as_ref().is_dir(),
+        "path should be a directory, not a file"
+    );
     iteritems(path, FtIterItemState::DirRec)
 }
 

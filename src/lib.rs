@@ -199,6 +199,7 @@ pub async fn list_files<P: AsRef<Path> + Send>(path: P) -> Result<Vec<PathBuf>> 
 ///
 /// This function will return an error in the following situations:
 ///
+/// * The given path is a file and not a directory
 /// * The given path does not exist
 ///
 /// # Example
@@ -217,6 +218,11 @@ pub async fn list_files<P: AsRef<Path> + Send>(path: P) -> Result<Vec<PathBuf>> 
 /// ```
 pub async fn list_directories<P: AsRef<Path> + Send>(path: P) -> Result<Vec<PathBuf>> {
     anyhow::ensure!(path.as_ref().exists(), "path does not exist");
+    anyhow::ensure!(
+        path.as_ref().is_dir(),
+        "path should be a directory, not a file"
+    );
+
     iteritems(path, FtIterItemState::DirNoRec).await
 }
 
