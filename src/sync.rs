@@ -154,7 +154,7 @@ pub fn list_directories<P: AsRef<Path>>(path: P) -> Result<Vec<impl AsRef<Path>>
 
 /// Lists all files in a directory including ALL subdirectories
 ///
-/// This is the sync version of [`crate::list_files_recursive`]
+/// This is the sync version of [`crate::list_nested_files`]
 ///
 /// # Errors
 ///
@@ -166,14 +166,14 @@ pub fn list_directories<P: AsRef<Path>>(path: P) -> Result<Vec<impl AsRef<Path>>
 /// # Example
 ///
 /// ```rust,no_run
-/// use filetools::sync::list_files_recursive;
+/// use filetools::sync::list_nested_files;
 ///
 /// let target_dir = "some/dir/containing/nested/files";
 ///
 /// // Will return a Vec containing all files in the directory (including all subdirectories)
-/// let files = list_files_recursive(target_dir).expect("unable to list files recursively");
+/// let files = list_nested_files(target_dir).expect("unable to list files recursively");
 /// ```
-pub fn list_files_recursive<P: AsRef<Path>>(path: P) -> Result<Vec<PathBuf>> {
+pub fn list_nested_files<P: AsRef<Path>>(path: P) -> Result<Vec<PathBuf>> {
     anyhow::ensure!(path.as_ref().exists(), "path does not exist");
     anyhow::ensure!(
         path.as_ref().is_dir(),
@@ -185,7 +185,7 @@ pub fn list_files_recursive<P: AsRef<Path>>(path: P) -> Result<Vec<PathBuf>> {
 
 /// Lists all directories in a directory including ALL subdirectories
 ///
-/// This is the sync version of [`crate::list_directories_recursive`]
+/// This is the sync version of [`crate::list_nested_directories`]
 ///
 /// # Errors
 ///
@@ -197,14 +197,14 @@ pub fn list_files_recursive<P: AsRef<Path>>(path: P) -> Result<Vec<PathBuf>> {
 /// # Example
 ///
 /// ```rust,no_run
-/// use filetools::sync::list_directories_recursive;
+/// use filetools::sync::list_nested_directories;
 ///
 /// let target_dir = "some/dir/containing/nested/files";
 ///
 /// // Will return a Vec containing all directories in the directory (including all subdirectories)
-/// let dirs = list_directories_recursive(target_dir).expect("unable to list directories recursively");
+/// let dirs = list_nested_directories(target_dir).expect("unable to list directories recursively");
 /// ```
-pub fn list_directories_recursive<P: AsRef<Path> + Send>(path: P) -> Result<Vec<PathBuf>> {
+pub fn list_nested_directories<P: AsRef<Path> + Send>(path: P) -> Result<Vec<PathBuf>> {
     anyhow::ensure!(path.as_ref().exists(), "path does not exist");
     anyhow::ensure!(
         path.as_ref().is_dir(),

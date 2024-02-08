@@ -13,21 +13,8 @@ use async_recursion::async_recursion;
 use std::path::{Component, Path, PathBuf};
 use tokio::fs;
 
-pub mod file;
 pub mod naming;
 pub mod sync;
-
-// What do we want?
-//
-// MUST:
-// Docs etc.
-//
-// NICE:
-// Some kind of filtering for searching?
-// A higher level File type to perform some ops quicker?
-//
-// MILES OFF:
-// File Task Manager - That operation scheduler thing
 
 /// Determines the type of iteration performed by the `list_directories` and `list_files` functions
 /// If the NoRec variation is used, only the current directory is considered
@@ -278,7 +265,7 @@ pub async fn list_directories<P: AsRef<Path> + Send>(path: P) -> Result<Vec<Path
 /// # Example
 ///
 /// ```rust,no_run
-/// use filetools::list_files_recursive;
+/// use filetools::list_nested_files;
 ///
 /// #[tokio::main]
 /// async fn main() -> anyhow::Result<()> {
@@ -286,12 +273,12 @@ pub async fn list_directories<P: AsRef<Path> + Send>(path: P) -> Result<Vec<Path
 ///
 ///     // This will return a Vec of ALL files contained within the directory
 ///     // (including in all subdirectories)
-///     let files = list_files_recursive(target_folder).await?;
+///     let files = list_nested_files(target_folder).await?;
 ///     Ok(())
 /// }
 /// ```
 #[async_recursion]
-pub async fn list_files_recursive<P: AsRef<Path> + Send>(path: P) -> Result<Vec<PathBuf>> {
+pub async fn list_nested_files<P: AsRef<Path> + Send>(path: P) -> Result<Vec<PathBuf>> {
     anyhow::ensure!(path.as_ref().exists(), "path does not exist");
     anyhow::ensure!(
         path.as_ref().is_dir(),
@@ -312,7 +299,7 @@ pub async fn list_files_recursive<P: AsRef<Path> + Send>(path: P) -> Result<Vec<
 /// # Example
 ///
 /// ```rust,no_run
-/// use filetools::list_directories_recursive;
+/// use filetools::list_nested_directories;
 ///
 /// #[tokio::main]
 /// async fn main() -> anyhow::Result<()> {
@@ -320,12 +307,12 @@ pub async fn list_files_recursive<P: AsRef<Path> + Send>(path: P) -> Result<Vec<
 ///
 ///     // This will return a Vec of ALL directories contained within the directory
 ///     // (including in all subdirectories)
-///     let directories = list_directories_recursive(target_folder).await?;
+///     let directories = list_nested_directories(target_folder).await?;
 ///     Ok(())
 /// }
 /// ```
 #[async_recursion]
-pub async fn list_directories_recursive<P: AsRef<Path> + Send>(path: P) -> Result<Vec<PathBuf>> {
+pub async fn list_nested_directories<P: AsRef<Path> + Send>(path: P) -> Result<Vec<PathBuf>> {
     anyhow::ensure!(path.as_ref().exists(), "path does not exist");
     iteritems(path, FtIterItemState::DirRec).await
 }
@@ -543,7 +530,7 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn check_list_files_recursive_works() -> Result<()> {
+    async fn check_list_nested_files_works() -> Result<()> {
         let root = TempPath::new("lfr_test").await?;
         let ffolder = root.new_folder("ffolder").await?;
         let sfolder = root.new_folder("sfolder").await?;
@@ -554,7 +541,7 @@ mod tests {
         sfolder.multi_file(vec!["second.txt", "third.php"]).await?;
         tfolder.new_file("fourth.cpp").await?;
 
-        let res = list_files_recursive(&root.path).await?;
+        let res = list_nested_files(&root.path).await?;
         assert_eq!(res.len(), 5);
 
         assert!(list_files("IDoNotExistAsADirectoryOrShouldntAtLeAst")
@@ -579,7 +566,7 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn check_list_directories_recursive_works() -> Result<()> {
+    async fn check_list_nested_directories_works() -> Result<()> {
         let root = TempPath::new("lfolderrec_test").await?;
         root.multi_folder(vec!["folder1", "folder2"]).await?;
 
@@ -589,12 +576,10 @@ mod tests {
         let s2 = TempPath::new(f1.join("sub2")).await?;
         s2.multi_folder(vec!["deep1", "deep2"]).await?;
 
-        let res = list_directories_recursive(root.path.clone()).await?;
+        let res = list_nested_directories(root.path.clone()).await?;
         assert_eq!(res.len(), 7);
 
-        assert!(list_directories_recursive("not-a-valId_pathd")
-            .await
-            .is_err());
+        assert!(list_nested_directories("not-a-valId_pathd").await.is_err());
 
         Ok(())
     }
