@@ -61,7 +61,39 @@ pub fn create_numeric_directories(
     Ok(())
 }
 
+/// Creates multiple directories inside the target path.
+///
+/// This is the sync version of [`crate::create_multiple_directories`]
+///
+/// # Example
+///
+/// ```rust,no_run
+/// use filetools::sync::create_multiple_directories;
+///
+/// let root = "dir/to/populate";
+/// let to_create = ["dir1", "dir2", "dir3"];
+///
+/// // Will create:
+/// // `dir/to/populate/dir1`
+/// // `dir/to/populate/dir2`
+/// // `dir/to/populate/dir3`
+/// create_multiple_directories(root, &to_create).expect("unable to create multiple directories");
+/// ```
+pub fn create_multiple_directories(
+    path: impl AsRef<Path>,
+    directories: &[impl AsRef<Path>],
+) -> Result<()> {
+    for dir in directories {
+        let target = path.as_ref().join(dir);
+        ensure_directory(target)?;
+    }
+
+    Ok(())
+}
+
 /// Lists all files in the given directory (not including subdirectories).
+///
+/// This is the sync version of [`crate::list_files`]
 ///
 /// # Errors
 ///
@@ -92,6 +124,8 @@ pub fn list_files<P: AsRef<Path>>(path: P) -> Result<Vec<impl AsRef<Path>>> {
 
 /// Lists all directories in the given directory (not including subdirectories).
 ///
+/// This is the sync version of [`crate::list_directories`]
+///
 /// # Errors
 ///
 /// This function will return an error in the following situations:
@@ -119,6 +153,8 @@ pub fn list_directories<P: AsRef<Path>>(path: P) -> Result<Vec<impl AsRef<Path>>
 }
 
 /// Lists all files in a directory including ALL subdirectories
+///
+/// This is the sync version of [`crate::list_files_recursive`]
 ///
 /// # Errors
 ///
@@ -148,6 +184,8 @@ pub fn list_files_recursive<P: AsRef<Path>>(path: P) -> Result<Vec<PathBuf>> {
 }
 
 /// Lists all directories in a directory including ALL subdirectories
+///
+/// This is the sync version of [`crate::list_directories_recursive`]
 ///
 /// # Errors
 ///

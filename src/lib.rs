@@ -1,4 +1,11 @@
-//! Crate to help with simple file / folder operations
+//! Crate to help with simple file / folder operations.
+//!
+//! Provides helper functions to:
+//!
+//! * Create directories
+//! * Check filepaths contain a pattern
+//! * List files / directories both iteratively and recursively
+//! * Generate names for files / directories
 //!
 //! TODO: More Docs!
 use anyhow::{Context, Result};
@@ -115,6 +122,39 @@ pub async fn ensure_directory(dir: impl AsRef<Path>) -> Result<()> {
         fs::create_dir_all(dir)
             .await
             .context("unable to create directory")?;
+    }
+
+    Ok(())
+}
+
+/// Creates multiple directories inside the target path.
+///
+/// # Example
+///
+/// ```rust,no_run
+/// use filetools::create_multiple_directories;
+///
+/// #[tokio::main]
+/// async fn main() -> anyhow::Result<()> {
+///     let root = "dir/to/populate";
+///     let to_create = ["dir1", "dir2", "dir3"];
+///
+///     // Will create:
+///     // `dir/to/populate/dir1`
+///     // `dir/to/populate/dir2`
+///     // `dir/to/populate/dir3`
+///     create_multiple_directories(root, &to_create);
+///
+///     Ok(())
+/// }
+/// ```
+pub async fn create_multiple_directories(
+    path: impl AsRef<Path>,
+    directories: &[impl AsRef<Path>],
+) -> Result<()> {
+    for dir in directories {
+        let target = path.as_ref().join(dir);
+        ensure_directory(target).await?;
     }
 
     Ok(())
@@ -570,6 +610,23 @@ mod tests {
         for (i, folder) in folders.into_iter().enumerate() {
             let test = &tmp.path.join(format!("{:0fill$}", i, fill = 4));
             assert_eq!(&folder, test);
+        }
+
+        Ok(())
+    }
+
+    #[tokio::test]
+    async fn multiple_directory_creation() -> Result<()> {
+        let tmp = TempPath::new("create_multiple_dirs").await?;
+        let dirs = ["config", "src", "tests"];
+
+        create_multiple_directories(&tmp.path, &dirs).await?;
+        let folders = list_directories(&tmp.path).await?;
+        assert_eq!(folders.len(), 3);
+
+        for check in dirs {
+            let target = tmp.path.join(check);
+            assert!(folders.contains(&target));
         }
 
         Ok(())
