@@ -10,6 +10,7 @@
 //! TODO: More Docs!
 use anyhow::{Context, Result};
 use async_recursion::async_recursion;
+use regex::Regex;
 use std::path::{Component, Path, PathBuf};
 use tokio::fs;
 
@@ -32,6 +33,13 @@ pub(crate) enum FtIterItemState {
 
     /// Iterate directories with recursion
     DirRec,
+}
+
+#[derive(Debug)]
+pub enum FtFilter {
+    Raw(String),
+    Path(PathBuf),
+    Regex(Regex),
 }
 
 /// Checks if a given pattern is considered a subdirectory of the given path
@@ -218,6 +226,47 @@ pub async fn list_files<P: AsRef<Path> + Send>(path: P) -> Result<Vec<PathBuf>> 
     );
 
     iteritems(path, FtIterItemState::FileNoRec).await
+}
+
+pub async fn list_files_with_filter<P: AsRef<Path> + Send>(
+    path: P,
+    pattern: FtFilter,
+) -> Result<Vec<PathBuf>> {
+    anyhow::ensure!(path.as_ref().exists(), "path does not exist");
+    anyhow::ensure!(
+        path.as_ref().is_dir(),
+        "path should be a directory, not a file"
+    );
+
+    let results = iteritems(path, FtIterItemState::FileNoRec)
+        .await?
+        .into_iter()
+        .filter_map(|item| match &pattern {
+            FtFilter::Raw(raw) => {
+                if path_contains(&item, raw) {
+                    return Some(item);
+                }
+
+                None
+            }
+            FtFilter::Path(filter_path) => {
+                if path_contains(&item, filter_path) {
+                    return Some(item);
+                }
+
+                None
+            }
+            FtFilter::Regex(re) => {
+                if re.is_match(item.to_str().unwrap()) {
+                    return Some(item);
+                }
+
+                None
+            }
+        })
+        .collect();
+
+    Ok(results)
 }
 
 /// Lists all directories in the given directory (not including subdirectories).
@@ -614,6 +663,30 @@ mod tests {
             assert!(folders.contains(&target));
         }
 
+        Ok(())
+    }
+
+    #[tokio::test]
+    async fn files_filter() -> Result<()> {
+        let root = TempPath::new("filter_files").await?;
+        root.multi_file(vec!["first.rs", "second.rs", "third.js", "fourth.rb"])
+            .await?;
+
+        let mut filter = FtFilter::Raw("fourth".to_string());
+        let mut result = list_files_with_filter(&root.path, filter).await?;
+        assert_eq!(result.len(), 1);
+        assert_eq!(result[0], root.path.join("fourth.rb"));
+
+        filter = FtFilter::Path(PathBuf::from("third.js"));
+        result = list_files_with_filter(&root.path, filter).await?;
+        assert_eq!(result.len(), 1);
+        assert_eq!(result[0], root.path.join("third.js"));
+
+        filter = FtFilter::Regex(Regex::new(r"(.*)\.rs").unwrap());
+        result = list_files_with_filter(&root.path, filter).await?;
+        assert_eq!(result.len(), 2);
+        assert!(result.contains(&root.path.join("first.rs")));
+        assert!(result.contains(&root.path.join("second.rs")));
         Ok(())
     }
 }
