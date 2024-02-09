@@ -1,5 +1,6 @@
 //! Sync variations of the main [`crate`] functions
-use crate::{naming::generate_n_digit_name, FtIterItemState};
+use crate::util::FtIterItemState;
+use crate::{naming::generate_n_digit_name, util::iteritems_sync, FtFilter};
 use anyhow::{Context, Result};
 use std::fs;
 use std::path::{Path, PathBuf};
@@ -119,7 +120,7 @@ pub fn list_files<P: AsRef<Path>>(path: P) -> Result<Vec<impl AsRef<Path>>> {
         "path should be a directory, not a file"
     );
 
-    iteritems(path, FtIterItemState::FileNoRec)
+    iteritems_sync(path, FtIterItemState::FileNoRec, None)
 }
 
 /// Lists all directories in the given directory (not including subdirectories).
@@ -149,7 +150,7 @@ pub fn list_directories<P: AsRef<Path>>(path: P) -> Result<Vec<impl AsRef<Path>>
         path.as_ref().is_dir(),
         "path should be a directory, not a file"
     );
-    iteritems(path, FtIterItemState::DirNoRec)
+    iteritems_sync(path, FtIterItemState::DirNoRec, None)
 }
 
 /// Lists all files in a directory including ALL subdirectories
@@ -180,7 +181,7 @@ pub fn list_nested_files<P: AsRef<Path>>(path: P) -> Result<Vec<PathBuf>> {
         "path should be a directory, not a file"
     );
 
-    iteritems(path, FtIterItemState::FileRec)
+    iteritems_sync(path, FtIterItemState::FileRec, None)
 }
 
 /// Lists all directories in a directory including ALL subdirectories
@@ -210,44 +211,7 @@ pub fn list_nested_directories<P: AsRef<Path> + Send>(path: P) -> Result<Vec<Pat
         path.as_ref().is_dir(),
         "path should be a directory, not a file"
     );
-    iteritems(path, FtIterItemState::DirRec)
-}
-
-fn iteritems<P: AsRef<Path>>(path: P, iterstate: FtIterItemState) -> Result<Vec<PathBuf>> {
-    let mut items = vec![];
-
-    let mut entries = fs::read_dir(path.as_ref()).context("list items inner call")?;
-
-    while let Some(Ok(entry)) = entries.next() {
-        let e_path = entry.path();
-        match iterstate {
-            FtIterItemState::FileNoRec => {
-                if e_path.is_file() {
-                    items.push(e_path);
-                }
-            }
-            FtIterItemState::FileRec => {
-                if e_path.is_file() {
-                    items.push(e_path)
-                } else if e_path.is_dir() {
-                    items.extend(iteritems(e_path, iterstate)?);
-                }
-            }
-            FtIterItemState::DirNoRec => {
-                if e_path.is_dir() {
-                    items.push(e_path);
-                }
-            }
-            FtIterItemState::DirRec => {
-                if e_path.is_dir() {
-                    items.push(e_path.clone());
-                    items.extend(iteritems(e_path, iterstate)?);
-                }
-            }
-        }
-    }
-
-    Ok(items)
+    iteritems_sync(path, FtIterItemState::DirRec, None)
 }
 
 // Do I write tests for these as they are just the sync version of the Ft functions

@@ -105,6 +105,56 @@ pub(crate) async fn iteritems<P: AsRef<Path> + Send>(
     Ok(items)
 }
 
+pub(crate) fn iteritems_sync<P: AsRef<Path>>(
+    path: P,
+    iterstate: FtIterItemState,
+    filter: Option<&FtFilter>,
+) -> Result<Vec<PathBuf>> {
+    let mut items = vec![];
+
+    let mut entries = std::fs::read_dir(path.as_ref()).context("sync iteritems entry call")?;
+
+    while let Some(Ok(entry)) = entries.next() {
+        let e_path = entry.path();
+
+        // If a filter is present, set the value to the result of the filter
+        // check, else default to true so always adds the value
+        let filter_pass = match filter.as_ref() {
+            Some(f) => matches_filter(&e_path, f),
+            None => true,
+        };
+        match iterstate {
+            FtIterItemState::FileNoRec => {
+                if e_path.is_file() && filter_pass {
+                    items.push(e_path);
+                }
+            }
+            FtIterItemState::FileRec => {
+                if e_path.is_file() && filter_pass {
+                    items.push(e_path)
+                } else if e_path.is_dir() {
+                    items.extend(iteritems_sync(e_path, iterstate, filter)?);
+                }
+            }
+            FtIterItemState::DirNoRec => {
+                if e_path.is_dir() && filter_pass {
+                    items.push(e_path);
+                }
+            }
+            FtIterItemState::DirRec => {
+                if e_path.is_dir() {
+                    if filter_pass {
+                        items.push(e_path.clone());
+                    }
+
+                    items.extend(iteritems_sync(e_path, iterstate, filter)?);
+                }
+            }
+        }
+    }
+
+    Ok(items)
+}
 /// Helper for creating temp directories
 ///
 /// Tempfile _would_ work but I want nested dirs and easy ways to create

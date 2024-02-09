@@ -5,7 +5,13 @@
 //! * Create directories
 //! * Check filepaths contain a pattern
 //! * List files / directories both iteratively and recursively
+//! * List files / directories both iteratively and recursively with filters
 //! * Generate names for files / directories
+//!
+//! ## Async vs Sync
+//!
+//! The operations in this crate are designed for async/await, however sync variations
+//! of the operations exist in the [`crate::sync`] module.
 //!
 //! TODO: More Docs!
 pub mod naming;
