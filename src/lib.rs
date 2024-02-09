@@ -18,7 +18,7 @@ use regex::Regex;
 use std::path::{Component, Path, PathBuf};
 use tokio::fs;
 
-use util::FtIterItemState;
+use util::{iteritems, FtIterItemState};
 
 /// Filter types for listing files / directories
 ///
@@ -419,89 +419,6 @@ pub async fn list_directories<P: AsRef<Path> + Send>(path: P) -> Result<Vec<Path
 pub async fn list_nested_directories<P: AsRef<Path> + Send>(path: P) -> Result<Vec<PathBuf>> {
     anyhow::ensure!(path.as_ref().exists(), "path does not exist");
     iteritems(path, FtIterItemState::DirRec, None).await
-}
-
-/// Helper function to determine if an path item is valid based on the supplied filter
-fn matches_filter(item: impl AsRef<Path>, filter: &FtFilter) -> bool {
-    match filter {
-        // I know these are the same for Raw and Path
-        // but it complains when you try and use the | with match
-        // for this
-        FtFilter::Raw(raw) => {
-            if path_contains(&item, raw) {
-                return true;
-            }
-        }
-        FtFilter::Path(filter_path) => {
-            if path_contains(&item, filter_path) {
-                return true;
-            }
-        }
-        FtFilter::Regex(re) => {
-            if re.is_match(item.as_ref().to_str().unwrap()) {
-                return true;
-            }
-        }
-    }
-
-    false
-}
-
-/// Helper function to iterate through a directory to find all Files / Directories
-/// depending on the `FilterState` passed.
-#[async_recursion]
-async fn iteritems<P: AsRef<Path> + Send>(
-    path: P,
-    iterstate: FtIterItemState,
-    filter: Option<&'async_recursion FtFilter>,
-) -> Result<Vec<PathBuf>> {
-    let mut items = vec![];
-
-    let mut entries = fs::read_dir(path.as_ref())
-        .await
-        .context("list items inner call")?;
-
-    while let Some(entry) = entries.next_entry().await? {
-        let e_path = entry.path();
-
-        // If a filter is present, set the value to the result of the filter
-        // check, else default to true so always adds the value
-        let filter_pass = match filter.as_ref() {
-            Some(f) => matches_filter(&e_path, f),
-            None => true,
-        };
-
-        match iterstate {
-            FtIterItemState::FileNoRec => {
-                if e_path.is_file() && filter_pass {
-                    items.push(e_path);
-                }
-            }
-            FtIterItemState::FileRec => {
-                if e_path.is_file() && filter_pass {
-                    items.push(e_path)
-                } else if e_path.is_dir() {
-                    items.extend(iteritems(e_path, iterstate, filter).await?);
-                }
-            }
-            FtIterItemState::DirNoRec => {
-                if e_path.is_dir() && filter_pass {
-                    items.push(e_path);
-                }
-            }
-            FtIterItemState::DirRec => {
-                if e_path.is_dir() {
-                    if filter_pass {
-                        items.push(e_path.clone());
-                    }
-
-                    items.extend(iteritems(e_path, iterstate, filter).await?);
-                }
-            }
-        }
-    }
-
-    Ok(items)
 }
 
 #[cfg(test)]
