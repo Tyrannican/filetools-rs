@@ -747,7 +747,7 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn find_files_error() -> Result<()> {
+    async fn list_items_error() -> Result<()> {
         let root = TempPath::new("filter_files_error").await?;
         let test = root.new_file("test.js").await?;
 
@@ -763,6 +763,19 @@ mod tests {
                 .await
                 .is_err()
         );
+        assert!(list_directories(&test.path).await.is_err());
+        assert!(list_nested_directories(&test.path).await.is_err());
+        assert!(
+            list_directories_with_filter(&test.path, FtFilter::Raw("filter".to_string()))
+                .await
+                .is_err()
+        );
+        assert!(list_nested_directories_with_filter(
+            &test.path,
+            FtFilter::Raw("filter".to_string())
+        )
+        .await
+        .is_err());
         Ok(())
     }
 
@@ -788,6 +801,93 @@ mod tests {
         result = list_nested_files_with_filter(&root.path, filter).await?;
         assert_eq!(result.len(), 1);
         assert_eq!(result[0], root.path.join("sfolder/second.txt"));
+        Ok(())
+    }
+
+    #[tokio::test]
+    async fn directories_filter() -> Result<()> {
+        let root = TempPath::new("dir_filter").await?;
+        root.multi_folder(vec!["log_var", "store_var", "config", "etc"])
+            .await?;
+
+        // Raw string filter
+        let mut filter = FtFilter::Raw("config".to_string());
+        let mut result = list_directories_with_filter(&root.path, filter).await?;
+        assert_eq!(result.len(), 1);
+        assert_eq!(result[0], root.path.join("config"));
+
+        // PathBuf filter
+        filter = FtFilter::Path(PathBuf::from("etc"));
+        result = list_directories_with_filter(&root.path, filter).await?;
+        assert_eq!(result.len(), 1);
+        assert_eq!(result[0], root.path.join("etc"));
+
+        // Regex filter
+        filter = FtFilter::Regex(Regex::new(r"(.*)_var").unwrap());
+        result = list_directories_with_filter(&root.path, filter).await?;
+        assert_eq!(result.len(), 2);
+        assert!(result.contains(&root.path.join("log_var")));
+        assert!(result.contains(&root.path.join("store_var")));
+        Ok(())
+    }
+
+    #[tokio::test]
+    async fn nested_directories_filter() -> Result<()> {
+        let root = TempPath::new("nested_dir_filter_test").await?;
+        root.multi_folder(vec!["folder1", "folder2"]).await?;
+
+        let f1 = TempPath::new(root.join("folder1")).await?;
+        f1.multi_folder(vec!["sub1", "sub_2", "sub3"]).await?;
+
+        let s2 = TempPath::new(f1.join("sub_2")).await?;
+        s2.multi_folder(vec!["deep_1", "deep2"]).await?;
+
+        // Raw filter
+        let mut filter = FtFilter::Raw("deep".to_string());
+        let mut result = list_nested_directories_with_filter(&root.path, filter).await?;
+        assert_eq!(result.len(), 2);
+        assert!(result.contains(&root.path.join("folder1/sub_2/deep_1")));
+        assert!(result.contains(&root.path.join("folder1/sub_2/deep2")));
+
+        // Path filter
+        filter = FtFilter::Path(PathBuf::from("folder1"));
+        result = list_nested_directories_with_filter(&root.path, filter).await?;
+        assert_eq!(result.len(), 6);
+
+        filter = FtFilter::Regex(Regex::new(r"(.*)_[0-9]{1}").unwrap());
+        result = list_nested_directories_with_filter(&root.path, filter).await?;
+        assert_eq!(result.len(), 3);
+
+        Ok(())
+    }
+
+    #[tokio::test]
+    async fn list_dirs_empty() -> Result<()> {
+        let root = TempPath::new("list_dirs_empty").await?;
+
+        // Raw string filter (normal + nested)
+        let mut filter = FtFilter::Raw("non-existant".to_string());
+        let mut result = list_directories_with_filter(&root.path, filter).await?;
+        assert!(result.is_empty());
+        filter = FtFilter::Raw("non-existant".to_string());
+        result = list_nested_directories_with_filter(&root.path, filter).await?;
+        assert!(result.is_empty());
+
+        // PathBuf Filter
+        filter = FtFilter::Path(PathBuf::from("another-missing"));
+        result = list_directories_with_filter(&root.path, filter).await?;
+        assert!(result.is_empty());
+        filter = FtFilter::Path(PathBuf::from("another-missing"));
+        result = list_nested_directories_with_filter(&root.path, filter).await?;
+        assert!(result.is_empty());
+
+        // Regex filter
+        filter = FtFilter::Regex(Regex::new(r"(.*)\.rs").unwrap());
+        result = list_directories_with_filter(&root.path, filter).await?;
+        assert!(result.is_empty());
+        filter = FtFilter::Regex(Regex::new(r"(.*)\.rs").unwrap());
+        result = list_nested_directories_with_filter(&root.path, filter).await?;
+        assert!(result.is_empty());
         Ok(())
     }
 }
