@@ -164,8 +164,7 @@ pub async fn create_multiple_directories(
     Ok(())
 }
 
-/// Creates a range of numeric folders in the given path starting from `start`
-/// up to `end` (non-inclusive).
+/// Creates a range of numeric folders in the given path
 ///
 /// Directories can be padded with X zeros using the `fill` parameter.
 ///
@@ -237,6 +236,37 @@ pub async fn list_files<P: AsRef<Path> + Send>(path: P) -> Result<Vec<PathBuf>> 
     iteritems(path, FtIterItemState::FileNoRec).await
 }
 
+/// Lists files in a folder (not including subdirectories) matching a filter pattern.
+///
+/// This pattern can be a `String`, `PathBuf`, or a [`regex::Regex`] pattern.
+///
+/// # Example
+///
+/// ```rust,no_run
+/// use regex::Regex;
+/// use std::path::PathBuf;
+/// use filetools::{list_files_with_filter, FtFilter};
+///
+/// #[tokio::main]
+/// async fn main() -> anyhow::Result<()> {
+///     let root = "some/path/containing/files";
+///
+///     // List all files containing the phrase `log`
+///     let mut filter = FtFilter::Raw("log".to_string());
+///     let mut results = list_files_with_filter(&root, filter).await?;
+///
+///     // List all files containing the path segment `files/test`
+///     filter = FtFilter::Path(PathBuf::from("files/test"));
+///     results = list_files_with_filter(&root, filter).await?;
+///
+///     // List all files ending with `.rs`
+///     let re = Regex::new(r"(.*)\.rs").expect("unable to create regex");
+///     filter = FtFilter::Regex(re);
+///     results = list_files_with_filter(&root, filter).await?;
+///
+///     Ok(())
+/// }
+/// ```
 pub async fn list_files_with_filter<P: AsRef<Path> + Send>(
     path: P,
     pattern: FtFilter,
