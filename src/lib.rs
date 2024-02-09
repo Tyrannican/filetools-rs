@@ -13,7 +13,6 @@ pub mod sync;
 pub(crate) mod util;
 
 use anyhow::{Context, Result};
-use async_recursion::async_recursion;
 use regex::Regex;
 use std::path::{Component, Path, PathBuf};
 use tokio::fs;
@@ -260,7 +259,6 @@ pub async fn list_files<P: AsRef<Path> + Send>(path: P) -> Result<Vec<PathBuf>> 
 ///     Ok(())
 /// }
 /// ```
-#[async_recursion]
 pub async fn list_nested_files<P: AsRef<Path> + Send>(path: P) -> Result<Vec<PathBuf>> {
     anyhow::ensure!(path.as_ref().exists(), "path does not exist");
     anyhow::ensure!(
@@ -415,10 +413,97 @@ pub async fn list_directories<P: AsRef<Path> + Send>(path: P) -> Result<Vec<Path
 ///     Ok(())
 /// }
 /// ```
-#[async_recursion]
 pub async fn list_nested_directories<P: AsRef<Path> + Send>(path: P) -> Result<Vec<PathBuf>> {
     anyhow::ensure!(path.as_ref().exists(), "path does not exist");
     iteritems(path, FtIterItemState::DirRec, None).await
+}
+
+/// Lists directories in a given directory (not including subdirectories) matching a filter pattern.
+///
+/// This pattern can be a `String`, `PathBuf`, or a [`regex::Regex`] pattern.
+///
+/// # Example
+///
+/// ```rust,no_run
+/// use regex::Regex;
+/// use std::path::PathBuf;
+/// use filetools::{list_directories_with_filter, FtFilter};
+///
+/// #[tokio::main]
+/// async fn main() -> anyhow::Result<()> {
+///     let root = "some/path/containing/dirs";
+///
+///     // List all dirs containing the phrase `log`
+///     let mut filter = FtFilter::Raw("log".to_string());
+///     let mut results = list_directories_with_filter(&root, filter).await?;
+///
+///     // List all dirs containing the path segment `files/test`
+///     filter = FtFilter::Path(PathBuf::from("files/test"));
+///     results = list_directories_with_filter(&root, filter).await?;
+///
+///     // List all dirs ending with `_test`
+///     let re = Regex::new(r"(.*)_test").expect("unable to create regex");
+///     filter = FtFilter::Regex(re);
+///     results = list_directories_with_filter(&root, filter).await?;
+///
+///     Ok(())
+/// }
+/// ```
+pub async fn list_directories_with_filter<P: AsRef<Path> + Send>(
+    path: P,
+    filter: FtFilter,
+) -> Result<Vec<PathBuf>> {
+    anyhow::ensure!(path.as_ref().exists(), "path does not exist");
+    anyhow::ensure!(
+        path.as_ref().is_dir(),
+        "path should be a directory, not a file"
+    );
+
+    iteritems(path, FtIterItemState::DirNoRec, Some(&filter)).await
+}
+
+/// Lists directories in a given directory (including ALL subdirectories) matching a filter pattern.
+///
+/// This pattern can be a `String`, `PathBuf`, or a [`regex::Regex`] pattern.
+///
+/// # Example
+///
+/// ```rust,no_run
+/// use regex::Regex;
+/// use std::path::PathBuf;
+/// use filetools::{list_directories_with_filter, FtFilter};
+///
+/// #[tokio::main]
+/// async fn main() -> anyhow::Result<()> {
+///     let root = "some/path/containing/dirs";
+///
+///     // List all dirs containing the phrase `log`
+///     let mut filter = FtFilter::Raw("log".to_string());
+///     let mut results = list_directories_with_filter(&root, filter).await?;
+///
+///     // List all dirs containing the path segment `files/test`
+///     filter = FtFilter::Path(PathBuf::from("files/test"));
+///     results = list_directories_with_filter(&root, filter).await?;
+///
+///     // List all dirs ending with `_test`
+///     let re = Regex::new(r"(.*)_test").expect("unable to create regex");
+///     filter = FtFilter::Regex(re);
+///     results = list_directories_with_filter(&root, filter).await?;
+///
+///     Ok(())
+/// }
+/// ```
+pub async fn list_nested_directories_with_filter<P: AsRef<Path> + Send>(
+    path: P,
+    filter: FtFilter,
+) -> Result<Vec<PathBuf>> {
+    anyhow::ensure!(path.as_ref().exists(), "path does not exist");
+    anyhow::ensure!(
+        path.as_ref().is_dir(),
+        "path should be a directory, not a file"
+    );
+
+    iteritems(path, FtIterItemState::DirRec, Some(&filter)).await
 }
 
 #[cfg(test)]
