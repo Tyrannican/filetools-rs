@@ -113,6 +113,10 @@ pub fn path_contains(path: impl AsRef<Path>, pattern: impl AsRef<Path> /* maybe 
 ///
 /// If the directory already exists, nothing is done
 ///
+/// ## Sync
+///
+/// For the `sync` version, see [`crate::sync::ensure_directory`]
+///
 /// # Example
 ///
 /// ```rust,no_run
@@ -137,6 +141,10 @@ pub async fn ensure_directory(dir: impl AsRef<Path>) -> Result<()> {
 }
 
 /// Creates multiple directories inside the target path.
+///
+/// ## Sync
+///
+/// For the `sync` version, see [`crate::sync::create_multiple_directories`]
 ///
 /// # Example
 ///
@@ -172,6 +180,10 @@ pub async fn create_multiple_directories(
 /// Creates a range of numeric folders in the given path
 ///
 /// Directories can be padded with X zeros using the `fill` parameter.
+///
+/// ## Sync
+///
+/// For the `sync` version, see [`crate::sync::create_numeric_directories`]
 ///
 /// # Example
 ///
@@ -210,12 +222,17 @@ pub async fn create_numeric_directories(
 
 /// Lists all files in the given directory (not including subdirectories).
 ///
+/// ## Sync
+///
+/// For the `sync` version, see [`crate::sync::list_files`]
+///
 /// # Errors
 ///
 /// This function will return an error in the following situations:
 ///
 /// * The path given is a file and not a directory
 /// * The given path does not exist
+///
 ///
 /// # Example
 ///
@@ -242,6 +259,10 @@ pub async fn list_files<P: AsRef<Path> + Send>(path: P) -> Result<Vec<PathBuf>> 
 }
 
 /// Lists all files in a directory including ALL subdirectories
+///
+/// ## Sync
+///
+/// For the `sync` version, see [`crate::sync::list_nested_files`]
 ///
 /// # Errors
 ///
@@ -278,6 +299,17 @@ pub async fn list_nested_files<P: AsRef<Path> + Send>(path: P) -> Result<Vec<Pat
 /// Lists files in a folder (not including subdirectories) matching a filter pattern.
 ///
 /// This pattern can be a `String`, `PathBuf`, or a [`regex::Regex`] pattern.
+///
+/// ## Sync
+///
+/// For the `sync` version, see [`crate::sync::list_files_with_filter`]
+///
+/// # Errors
+///
+/// This function will return an error in the following situations:
+///
+/// * The given path is a file and not a directory
+/// * The given path does not exist
 ///
 /// # Example
 ///
@@ -323,12 +355,23 @@ pub async fn list_files_with_filter<P: AsRef<Path> + Send>(
 ///
 /// This pattern can be a `String`, `PathBuf`, or a [`regex::Regex`] pattern.
 ///
+/// ## Sync
+///
+/// For the `sync` version, see [`crate::sync::list_nested_files_with_filter`]
+///
+/// # Errors
+///
+/// This function will return an error in the following situations:
+///
+/// * The given path is a file and not a directory
+/// * The given path does not exist
+///
 /// # Example
 ///
 /// ```rust,no_run
 /// use regex::Regex;
 /// use std::path::PathBuf;
-/// use filetools::{list_files_with_filter, FtFilter};
+/// use filetools::{list_nested_files_with_filter, FtFilter};
 ///
 /// #[tokio::main]
 /// async fn main() -> anyhow::Result<()> {
@@ -336,16 +379,16 @@ pub async fn list_files_with_filter<P: AsRef<Path> + Send>(
 ///
 ///     // List all files containing the phrase `log`
 ///     let mut filter = FtFilter::Raw("log".to_string());
-///     let mut results = list_files_with_filter(&root, filter).await?;
+///     let mut results = list_nested_files_with_filter(&root, filter).await?;
 ///
 ///     // List all files containing the path segment `files/test`
 ///     filter = FtFilter::Path(PathBuf::from("files/test"));
-///     results = list_files_with_filter(&root, filter).await?;
+///     results = list_nested_files_with_filter(&root, filter).await?;
 ///
 ///     // List all files ending with `.rs`
 ///     let re = Regex::new(r"(.*)\.rs").expect("unable to create regex");
 ///     filter = FtFilter::Regex(re);
-///     results = list_files_with_filter(&root, filter).await?;
+///     results = list_nested_files_with_filter(&root, filter).await?;
 ///
 ///     Ok(())
 /// }
@@ -364,6 +407,10 @@ pub async fn list_nested_files_with_filter<P: AsRef<Path> + Send>(
 }
 
 /// Lists all directories in the given directory (not including subdirectories).
+///
+/// ## Sync
+///
+/// For the `sync` version, see [`crate::sync::list_directories`]
 ///
 /// # Errors
 ///
@@ -398,10 +445,15 @@ pub async fn list_directories<P: AsRef<Path> + Send>(path: P) -> Result<Vec<Path
 
 /// Lists all directories in a directory including ALL subdirectories
 ///
+/// ## Sync
+///
+/// For the `sync` version, see [`crate::sync::list_nested_directories`]
+///
 /// # Errors
 ///
 /// This function will return an error in the following situations:
 ///
+/// * The given path is a file and not a directory
 /// * The given path does not exist
 ///
 /// # Example
@@ -427,6 +479,17 @@ pub async fn list_nested_directories<P: AsRef<Path> + Send>(path: P) -> Result<V
 /// Lists directories in a given directory (not including subdirectories) matching a filter pattern.
 ///
 /// This pattern can be a `String`, `PathBuf`, or a [`regex::Regex`] pattern.
+///
+/// ## Sync
+///
+/// For the `sync` version, see [`crate::sync::list_directories_with_filter`]
+///
+/// # Errors
+///
+/// This function will return an error in the following situations:
+///
+/// * The given path is a file and not a directory
+/// * The given path does not exist
 ///
 /// # Example
 ///
@@ -472,12 +535,23 @@ pub async fn list_directories_with_filter<P: AsRef<Path> + Send>(
 ///
 /// This pattern can be a `String`, `PathBuf`, or a [`regex::Regex`] pattern.
 ///
+/// ## Sync
+///
+/// For the `sync` version, see [`crate::sync::list_nested_directories_with_filter`]
+///
+/// # Errors
+///
+/// This function will return an error in the following situations:
+///
+/// * The given path is a file and not a directory
+/// * The given path does not exist
+///
 /// # Example
 ///
 /// ```rust,no_run
 /// use regex::Regex;
 /// use std::path::PathBuf;
-/// use filetools::{list_directories_with_filter, FtFilter};
+/// use filetools::{list_nested_directories_with_filter, FtFilter};
 ///
 /// #[tokio::main]
 /// async fn main() -> anyhow::Result<()> {
@@ -485,16 +559,16 @@ pub async fn list_directories_with_filter<P: AsRef<Path> + Send>(
 ///
 ///     // List all dirs containing the phrase `log`
 ///     let mut filter = FtFilter::Raw("log".to_string());
-///     let mut results = list_directories_with_filter(&root, filter).await?;
+///     let mut results = list_nested_directories_with_filter(&root, filter).await?;
 ///
 ///     // List all dirs containing the path segment `files/test`
 ///     filter = FtFilter::Path(PathBuf::from("files/test"));
-///     results = list_directories_with_filter(&root, filter).await?;
+///     results = list_nested_directories_with_filter(&root, filter).await?;
 ///
 ///     // List all dirs ending with `_test`
 ///     let re = Regex::new(r"(.*)_test").expect("unable to create regex");
 ///     filter = FtFilter::Regex(re);
-///     results = list_directories_with_filter(&root, filter).await?;
+///     results = list_nested_directories_with_filter(&root, filter).await?;
 ///
 ///     Ok(())
 /// }

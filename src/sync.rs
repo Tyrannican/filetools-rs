@@ -9,7 +9,9 @@ use std::path::{Path, PathBuf};
 ///
 /// If the directory already exists, nothing is done
 ///
-/// This is the sync version of [`crate::ensure_directory`]
+/// ## Async
+///
+/// For the `async` version, see: [`crate::ensure_directory`]
 ///
 /// # Example
 ///
@@ -28,12 +30,13 @@ pub fn ensure_directory(dir: impl AsRef<Path>) -> Result<()> {
     Ok(())
 }
 
-/// Creates a range of numeric folders in the given path starting from `start`
-/// up to `end` (non-inclusive).
+/// Creates a range of numeric folders in the given path
 ///
 /// Directories can be padded with X zeros using the `fill` parameter.
 ///
-/// This is the sync version of [`crate::create_numeric_directories`]
+/// ## Async
+///
+/// For the `async` version, see: [`crate::create_numeric_directories`]
 ///
 /// # Example
 ///
@@ -64,7 +67,9 @@ pub fn create_numeric_directories(
 
 /// Creates multiple directories inside the target path.
 ///
-/// This is the sync version of [`crate::create_multiple_directories`]
+/// ## Async
+///
+/// For the `async` version, see: [`crate::create_multiple_directories`]
 ///
 /// # Example
 ///
@@ -94,7 +99,9 @@ pub fn create_multiple_directories(
 
 /// Lists all files in the given directory (not including subdirectories).
 ///
-/// This is the sync version of [`crate::list_files`]
+/// ## Async
+///
+/// For the `async` version, see: [`crate::list_files`]
 ///
 /// # Errors
 ///
@@ -123,39 +130,11 @@ pub fn list_files<P: AsRef<Path>>(path: P) -> Result<Vec<impl AsRef<Path>>> {
     iteritems_sync(path, FtIterItemState::FileNoRec, None)
 }
 
-/// Lists all directories in the given directory (not including subdirectories).
-///
-/// This is the sync version of [`crate::list_directories`]
-///
-/// # Errors
-///
-/// This function will return an error in the following situations:
-///
-/// * The path given is a file and not a directory
-/// * The given path does not exist
-///
-/// # Example
-///
-/// ```rust,no_run
-/// use filetools::sync::list_directories;
-///
-/// let target_dir = "some/dir/containing/files";
-///
-/// // Will return a Vec containing paths to all directories in the directory
-/// let dirs = list_directories(target_dir).expect("unable to list directories");
-/// ```
-pub fn list_directories<P: AsRef<Path>>(path: P) -> Result<Vec<impl AsRef<Path>>> {
-    anyhow::ensure!(path.as_ref().exists(), "path does not exist");
-    anyhow::ensure!(
-        path.as_ref().is_dir(),
-        "path should be a directory, not a file"
-    );
-    iteritems_sync(path, FtIterItemState::DirNoRec, None)
-}
-
 /// Lists all files in a directory including ALL subdirectories
 ///
-/// This is the sync version of [`crate::list_nested_files`]
+/// ## Async
+///
+/// For the `async` version, see: [`crate::list_nested_files`]
 ///
 /// # Errors
 ///
@@ -184,9 +163,128 @@ pub fn list_nested_files<P: AsRef<Path>>(path: P) -> Result<Vec<PathBuf>> {
     iteritems_sync(path, FtIterItemState::FileRec, None)
 }
 
+/// Lists files in a folder (not including subdirectories) matching a filter pattern.
+///
+/// This pattern can be a `String`, `PathBuf`, or a [`regex::Regex`] pattern.
+///
+/// ## Async
+///
+/// For the `async` version, see: [`crate::list_files_with_filter`]
+///
+/// # Example
+///
+/// ```rust,no_run
+/// use regex::Regex;
+/// use std::path::PathBuf;
+/// use filetools::{sync::list_files_with_filter, FtFilter};
+///
+/// let root = "some/path/containing/files";
+///
+/// // List all files containing the phrase `log`
+/// let mut filter = FtFilter::Raw("log".to_string());
+/// let mut results = list_files_with_filter(&root, filter).expect("unable to list filtered files");
+///
+/// // List all files containing the path segment `files/test`
+/// filter = FtFilter::Path(PathBuf::from("files/test"));
+/// results = list_files_with_filter(&root, filter).expect("unable to list filtered files");
+///
+/// // List all files ending with `.rs`
+/// let re = Regex::new(r"(.*)\.rs").expect("unable to create regex");
+/// filter = FtFilter::Regex(re);
+/// results = list_files_with_filter(&root, filter).expect("unable to list filtered files");
+///
+///
+/// ```
+pub fn list_files_with_filter<P: AsRef<Path>>(path: P, filter: FtFilter) -> Result<Vec<PathBuf>> {
+    anyhow::ensure!(path.as_ref().exists(), "path does not exist");
+    anyhow::ensure!(
+        path.as_ref().is_dir(),
+        "path should be a directory, not a file"
+    );
+
+    iteritems_sync(path, FtIterItemState::FileNoRec, Some(&filter))
+}
+
+/// Lists files in a folder (including ALL subdirectories) matching a filter pattern.
+///
+/// This pattern can be a `String`, `PathBuf`, or a [`regex::Regex`] pattern.
+///
+/// ## Async
+///
+/// For the `async` version, see: [`crate::list_nested_files_with_filter`]
+///
+/// # Example
+///
+/// ```rust,no_run
+/// use regex::Regex;
+/// use std::path::PathBuf;
+/// use filetools::{sync::list_nested_files_with_filter, FtFilter};
+///
+/// let root = "some/path/containing/nested/folders/with/files";
+///
+/// // List all files containing the phrase `log`
+/// let mut filter = FtFilter::Raw("log".to_string());
+/// let mut results = list_nested_files_with_filter(&root, filter).expect("unable to list nested files with filter");
+///
+/// // List all files containing the path segment `files/test`
+/// filter = FtFilter::Path(PathBuf::from("files/test"));
+/// results = list_nested_files_with_filter(&root, filter).expect("unable to list nested files with filter");
+///
+/// // List all files ending with `.rs`
+/// let re = Regex::new(r"(.*)\.rs").expect("unable to create regex");
+/// filter = FtFilter::Regex(re);
+/// results = list_nested_files_with_filter(&root, filter).expect("unable to list nested files with filter");
+/// ```
+pub fn list_nested_files_with_filter<P: AsRef<Path>>(
+    path: P,
+    filter: FtFilter,
+) -> Result<Vec<PathBuf>> {
+    anyhow::ensure!(path.as_ref().exists(), "path does not exist");
+    anyhow::ensure!(
+        path.as_ref().is_dir(),
+        "path should be a directory, not a file"
+    );
+
+    iteritems_sync(path, FtIterItemState::FileRec, Some(&filter))
+}
+
+/// Lists all directories in the given directory (not including subdirectories).
+///
+/// ## Async
+///
+/// For the `async` version, see: [`crate::list_directories`]
+///
+/// # Errors
+///
+/// This function will return an error in the following situations:
+///
+/// * The path given is a file and not a directory
+/// * The given path does not exist
+///
+/// # Example
+///
+/// ```rust,no_run
+/// use filetools::sync::list_directories;
+///
+/// let target_dir = "some/dir/containing/files";
+///
+/// // Will return a Vec containing paths to all directories in the directory
+/// let dirs = list_directories(target_dir).expect("unable to list directories");
+/// ```
+pub fn list_directories<P: AsRef<Path>>(path: P) -> Result<Vec<impl AsRef<Path>>> {
+    anyhow::ensure!(path.as_ref().exists(), "path does not exist");
+    anyhow::ensure!(
+        path.as_ref().is_dir(),
+        "path should be a directory, not a file"
+    );
+    iteritems_sync(path, FtIterItemState::DirNoRec, None)
+}
+
 /// Lists all directories in a directory including ALL subdirectories
 ///
-/// This is the sync version of [`crate::list_nested_directories`]
+/// ## Async
+///
+/// For the `async` version, see: [`crate::list_nested_directories`]
 ///
 /// # Errors
 ///
@@ -214,6 +312,88 @@ pub fn list_nested_directories<P: AsRef<Path> + Send>(path: P) -> Result<Vec<Pat
     iteritems_sync(path, FtIterItemState::DirRec, None)
 }
 
-// Do I write tests for these as they are just the sync version of the Ft functions
-// which already pass...?
-// TODO: Maybe tests?
+/// Lists directories in a given directory (not including subdirectories) matching a filter pattern.
+///
+/// This pattern can be a `String`, `PathBuf`, or a [`regex::Regex`] pattern.
+///
+/// ## Async
+///
+/// For the `async` version, see: [`crate::list_directories_with_filter`]
+///
+/// # Example
+///
+/// ```rust,no_run
+/// use regex::Regex;
+/// use std::path::PathBuf;
+/// use filetools::{sync::list_directories_with_filter, FtFilter};
+///
+/// let root = "some/path/containing/dirs";
+///
+/// // List all dirs containing the phrase `log`
+/// let mut filter = FtFilter::Raw("log".to_string());
+/// let mut results = list_directories_with_filter(&root, filter).expect("unable to list dirs with filter");
+///
+/// // List all dirs containing the path segment `files/test`
+/// filter = FtFilter::Path(PathBuf::from("files/test"));
+/// results = list_directories_with_filter(&root, filter).expect("unable to list dirs with filter");
+///
+/// // List all dirs ending with `_test`
+/// let re = Regex::new(r"(.*)_test").expect("unable to create regex");
+/// filter = FtFilter::Regex(re);
+/// results = list_directories_with_filter(&root, filter).expect("unable to list dirs with filter");
+/// ```
+pub fn list_directories_with_filter<P: AsRef<Path>>(
+    path: P,
+    filter: FtFilter,
+) -> Result<Vec<PathBuf>> {
+    anyhow::ensure!(path.as_ref().exists(), "path does not exist");
+    anyhow::ensure!(
+        path.as_ref().is_dir(),
+        "path should be a directory, not a file"
+    );
+    iteritems_sync(path, FtIterItemState::DirNoRec, Some(&filter))
+}
+
+/// Lists directories in a given directory (including ALL subdirectories) matching a filter pattern.
+///
+/// This pattern can be a `String`, `PathBuf`, or a [`regex::Regex`] pattern.
+///
+/// ## Async
+///
+/// For the `async` version, see: [`crate::list_nested_directories_with_filter`]
+///
+/// # Example
+///
+/// ```rust,no_run
+/// use regex::Regex;
+/// use std::path::PathBuf;
+/// use filetools::{sync::list_nested_directories_with_filter, FtFilter};
+///
+/// let root = "some/path/containing/dirs";
+///
+/// // List all dirs containing the phrase `log`
+/// let mut filter = FtFilter::Raw("log".to_string());
+/// let mut results = list_nested_directories_with_filter(&root, filter).expect("unable to list nested dirs with filter");
+///
+/// // List all dirs containing the path segment `files/test`
+/// filter = FtFilter::Path(PathBuf::from("files/test"));
+/// results = list_nested_directories_with_filter(&root, filter).expect("unable to list nested dirs with filter");
+///
+/// // List all dirs ending with `_test`
+/// let re = Regex::new(r"(.*)_test").expect("unable to create regex");
+/// filter = FtFilter::Regex(re);
+/// results = list_nested_directories_with_filter(&root, filter).expect("unable to list nested dirs with filter");
+/// ```
+pub fn list_nested_directories_with_filter<P: AsRef<Path>>(
+    path: P,
+    filter: FtFilter,
+) -> Result<Vec<PathBuf>> {
+    anyhow::ensure!(path.as_ref().exists(), "path does not exist");
+    anyhow::ensure!(
+        path.as_ref().is_dir(),
+        "path should be a directory, not a file"
+    );
+    iteritems_sync(path, FtIterItemState::DirRec, Some(&filter))
+}
+
+// No tests needed cause these are tested in the main crate

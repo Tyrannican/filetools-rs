@@ -1,3 +1,5 @@
+//! Internal helper utilities and types
+
 use crate::{ensure_directory, path_contains, FtFilter};
 use anyhow::{Context, Result};
 use async_recursion::async_recursion;
