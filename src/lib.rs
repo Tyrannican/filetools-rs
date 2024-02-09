@@ -20,10 +20,34 @@ use tokio::fs;
 
 use util::FtIterItemState;
 
+/// Filter types for listing files / directories
+///
+/// # Example
+///
+/// ```rust
+/// use filetools::FtFilter;
+/// use std::path::PathBuf;
+/// use regex::Regex;
+///
+/// // Use a raw String filter to match an item containing ".log"
+/// let filter = FtFilter::Raw(".log".to_string());
+///
+/// // Use the Path filter to match paths that contain `sub/path/to/math`
+/// let filter = FtFilter::Path(PathBuf::from("sub/path/to/match"));
+///
+/// // Use a Regex filter to match all files ending with `.rs`
+/// let re = Regex::new(r"(.*)\.rs").expect("unable to create regex");
+/// let filter = FtFilter::Regex(re);
+/// ```
 #[derive(Debug)]
 pub enum FtFilter {
+    /// Filter based on a raw String pattern
     Raw(String),
+
+    /// Filter based on a PathBuf pattern
     Path(PathBuf),
+
+    /// Filter based on a regex pattern
     Regex(Regex),
 }
 
@@ -227,6 +251,9 @@ pub async fn list_files_with_filter<P: AsRef<Path> + Send>(
         .await?
         .into_iter()
         .filter_map(|item| match &pattern {
+            // I know these are the same for Raw and Path
+            // but it complains when you try and use the | with match
+            // for this
             FtFilter::Raw(raw) => {
                 if path_contains(&item, raw) {
                     return Some(item);
@@ -403,9 +430,9 @@ mod tests {
     use std::path::PathBuf;
     use util::TempPath;
 
-    #[tokio::test]
     // This is kind of redundant as it just wraps `tokio::fs::create_dir_all`
     // but yay for test coverage i suppose
+    #[tokio::test]
     async fn creates_a_directory() -> Result<()> {
         let tmp = std::env::temp_dir();
 

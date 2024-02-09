@@ -29,6 +29,8 @@ pub(crate) struct TempPath {
     pub path: PathBuf,
 }
 
+// This is only used in the test suite
+#[allow(dead_code)]
 impl TempPath {
     pub async fn new(p: impl AsRef<Path>) -> Result<Self> {
         let root = std::env::temp_dir();
