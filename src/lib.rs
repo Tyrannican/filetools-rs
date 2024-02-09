@@ -233,7 +233,42 @@ pub async fn list_files<P: AsRef<Path> + Send>(path: P) -> Result<Vec<PathBuf>> 
         "path should be a directory, not a file"
     );
 
-    iteritems(path, FtIterItemState::FileNoRec).await
+    iteritems(path, FtIterItemState::FileNoRec, None).await
+}
+
+/// Lists all files in a directory including ALL subdirectories
+///
+/// # Errors
+///
+/// This function will return an error in the following situations:
+///
+/// * The given path is a file and not a directory
+/// * The given path does not exist
+///
+/// # Example
+///
+/// ```rust,no_run
+/// use filetools::list_nested_files;
+///
+/// #[tokio::main]
+/// async fn main() -> anyhow::Result<()> {
+///     let target_folder = "directory/containing/nested/files";
+///
+///     // This will return a Vec of ALL files contained within the directory
+///     // (including in all subdirectories)
+///     let files = list_nested_files(target_folder).await?;
+///     Ok(())
+/// }
+/// ```
+#[async_recursion]
+pub async fn list_nested_files<P: AsRef<Path> + Send>(path: P) -> Result<Vec<PathBuf>> {
+    anyhow::ensure!(path.as_ref().exists(), "path does not exist");
+    anyhow::ensure!(
+        path.as_ref().is_dir(),
+        "path should be a directory, not a file"
+    );
+
+    iteritems(path, FtIterItemState::FileRec, None).await
 }
 
 /// Lists files in a folder (not including subdirectories) matching a filter pattern.
@@ -277,38 +312,51 @@ pub async fn list_files_with_filter<P: AsRef<Path> + Send>(
         "path should be a directory, not a file"
     );
 
-    let results = iteritems(path, FtIterItemState::FileNoRec)
-        .await?
-        .into_iter()
-        .filter_map(|item| match &pattern {
-            // I know these are the same for Raw and Path
-            // but it complains when you try and use the | with match
-            // for this
-            FtFilter::Raw(raw) => {
-                if path_contains(&item, raw) {
-                    return Some(item);
-                }
+    iteritems(path, FtIterItemState::FileNoRec, Some(&pattern)).await
+}
 
-                None
-            }
-            FtFilter::Path(filter_path) => {
-                if path_contains(&item, filter_path) {
-                    return Some(item);
-                }
+/// Lists files in a folder (including ALL subdirectories) matching a filter pattern.
+///
+/// This pattern can be a `String`, `PathBuf`, or a [`regex::Regex`] pattern.
+///
+/// # Example
+///
+/// ```rust,no_run
+/// use regex::Regex;
+/// use std::path::PathBuf;
+/// use filetools::{list_files_with_filter, FtFilter};
+///
+/// #[tokio::main]
+/// async fn main() -> anyhow::Result<()> {
+///     let root = "some/path/containing/nested/folders/with/files";
+///
+///     // List all files containing the phrase `log`
+///     let mut filter = FtFilter::Raw("log".to_string());
+///     let mut results = list_files_with_filter(&root, filter).await?;
+///
+///     // List all files containing the path segment `files/test`
+///     filter = FtFilter::Path(PathBuf::from("files/test"));
+///     results = list_files_with_filter(&root, filter).await?;
+///
+///     // List all files ending with `.rs`
+///     let re = Regex::new(r"(.*)\.rs").expect("unable to create regex");
+///     filter = FtFilter::Regex(re);
+///     results = list_files_with_filter(&root, filter).await?;
+///
+///     Ok(())
+/// }
+/// ```
+pub async fn list_nested_files_with_filter<P: AsRef<Path> + Send>(
+    path: P,
+    pattern: FtFilter,
+) -> Result<Vec<PathBuf>> {
+    anyhow::ensure!(path.as_ref().exists(), "path does not exist");
+    anyhow::ensure!(
+        path.as_ref().is_dir(),
+        "path should be a directory, not a file"
+    );
 
-                None
-            }
-            FtFilter::Regex(re) => {
-                if re.is_match(item.to_str().unwrap()) {
-                    return Some(item);
-                }
-
-                None
-            }
-        })
-        .collect();
-
-    Ok(results)
+    iteritems(path, FtIterItemState::FileRec, Some(&pattern)).await
 }
 
 /// Lists all directories in the given directory (not including subdirectories).
@@ -341,42 +389,7 @@ pub async fn list_directories<P: AsRef<Path> + Send>(path: P) -> Result<Vec<Path
         "path should be a directory, not a file"
     );
 
-    iteritems(path, FtIterItemState::DirNoRec).await
-}
-
-/// Lists all files in a directory including ALL subdirectories
-///
-/// # Errors
-///
-/// This function will return an error in the following situations:
-///
-/// * The given path is a file and not a directory
-/// * The given path does not exist
-///
-/// # Example
-///
-/// ```rust,no_run
-/// use filetools::list_nested_files;
-///
-/// #[tokio::main]
-/// async fn main() -> anyhow::Result<()> {
-///     let target_folder = "directory/containing/nested/files";
-///
-///     // This will return a Vec of ALL files contained within the directory
-///     // (including in all subdirectories)
-///     let files = list_nested_files(target_folder).await?;
-///     Ok(())
-/// }
-/// ```
-#[async_recursion]
-pub async fn list_nested_files<P: AsRef<Path> + Send>(path: P) -> Result<Vec<PathBuf>> {
-    anyhow::ensure!(path.as_ref().exists(), "path does not exist");
-    anyhow::ensure!(
-        path.as_ref().is_dir(),
-        "path should be a directory, not a file"
-    );
-
-    iteritems(path, FtIterItemState::FileRec).await
+    iteritems(path, FtIterItemState::DirNoRec, None).await
 }
 
 /// Lists all directories in a directory including ALL subdirectories
@@ -405,7 +418,33 @@ pub async fn list_nested_files<P: AsRef<Path> + Send>(path: P) -> Result<Vec<Pat
 #[async_recursion]
 pub async fn list_nested_directories<P: AsRef<Path> + Send>(path: P) -> Result<Vec<PathBuf>> {
     anyhow::ensure!(path.as_ref().exists(), "path does not exist");
-    iteritems(path, FtIterItemState::DirRec).await
+    iteritems(path, FtIterItemState::DirRec, None).await
+}
+
+/// Helper function to determine if an path item is valid based on the supplied filter
+fn matches_filter(item: impl AsRef<Path>, filter: &FtFilter) -> bool {
+    match filter {
+        // I know these are the same for Raw and Path
+        // but it complains when you try and use the | with match
+        // for this
+        FtFilter::Raw(raw) => {
+            if path_contains(&item, raw) {
+                return true;
+            }
+        }
+        FtFilter::Path(filter_path) => {
+            if path_contains(&item, filter_path) {
+                return true;
+            }
+        }
+        FtFilter::Regex(re) => {
+            if re.is_match(item.as_ref().to_str().unwrap()) {
+                return true;
+            }
+        }
+    }
+
+    false
 }
 
 /// Helper function to iterate through a directory to find all Files / Directories
@@ -414,6 +453,7 @@ pub async fn list_nested_directories<P: AsRef<Path> + Send>(path: P) -> Result<V
 async fn iteritems<P: AsRef<Path> + Send>(
     path: P,
     iterstate: FtIterItemState,
+    filter: Option<&'async_recursion FtFilter>,
 ) -> Result<Vec<PathBuf>> {
     let mut items = vec![];
 
@@ -423,28 +463,39 @@ async fn iteritems<P: AsRef<Path> + Send>(
 
     while let Some(entry) = entries.next_entry().await? {
         let e_path = entry.path();
+
+        // If a filter is present, set the value to the result of the filter
+        // check, else default to true so always adds the value
+        let filter_pass = match filter.as_ref() {
+            Some(f) => matches_filter(&e_path, f),
+            None => true,
+        };
+
         match iterstate {
             FtIterItemState::FileNoRec => {
-                if e_path.is_file() {
+                if e_path.is_file() && filter_pass {
                     items.push(e_path);
                 }
             }
             FtIterItemState::FileRec => {
-                if e_path.is_file() {
+                if e_path.is_file() && filter_pass {
                     items.push(e_path)
                 } else if e_path.is_dir() {
-                    items.extend(iteritems(e_path, iterstate).await?);
+                    items.extend(iteritems(e_path, iterstate, filter).await?);
                 }
             }
             FtIterItemState::DirNoRec => {
-                if e_path.is_dir() {
+                if e_path.is_dir() && filter_pass {
                     items.push(e_path);
                 }
             }
             FtIterItemState::DirRec => {
                 if e_path.is_dir() {
-                    items.push(e_path.clone());
-                    items.extend(iteritems(e_path, iterstate).await?);
+                    if filter_pass {
+                        items.push(e_path.clone());
+                    }
+
+                    items.extend(iteritems(e_path, iterstate, filter).await?);
                 }
             }
         }
@@ -641,21 +692,100 @@ mod tests {
         root.multi_file(vec!["first.rs", "second.rs", "third.js", "fourth.rb"])
             .await?;
 
+        // Raw string filter
         let mut filter = FtFilter::Raw("fourth".to_string());
         let mut result = list_files_with_filter(&root.path, filter).await?;
         assert_eq!(result.len(), 1);
         assert_eq!(result[0], root.path.join("fourth.rb"));
 
+        // PathBuf filter
         filter = FtFilter::Path(PathBuf::from("third.js"));
         result = list_files_with_filter(&root.path, filter).await?;
         assert_eq!(result.len(), 1);
         assert_eq!(result[0], root.path.join("third.js"));
 
+        // Regex filter
         filter = FtFilter::Regex(Regex::new(r"(.*)\.rs").unwrap());
         result = list_files_with_filter(&root.path, filter).await?;
         assert_eq!(result.len(), 2);
         assert!(result.contains(&root.path.join("first.rs")));
         assert!(result.contains(&root.path.join("second.rs")));
+
+        Ok(())
+    }
+
+    #[tokio::test]
+    async fn files_filter_is_empty() -> Result<()> {
+        let root = TempPath::new("filter_files_empty").await?;
+
+        // Raw string filter (normal + nested)
+        let mut filter = FtFilter::Raw("non-existant".to_string());
+        let mut result = list_files_with_filter(&root.path, filter).await?;
+        assert!(result.is_empty());
+        filter = FtFilter::Raw("non-existant".to_string());
+        result = list_nested_files_with_filter(&root.path, filter).await?;
+        assert!(result.is_empty());
+
+        // PathBuf Filter
+        filter = FtFilter::Path(PathBuf::from("another-missing"));
+        result = list_files_with_filter(&root.path, filter).await?;
+        assert!(result.is_empty());
+        filter = FtFilter::Path(PathBuf::from("another-missing"));
+        result = list_nested_files_with_filter(&root.path, filter).await?;
+        assert!(result.is_empty());
+
+        // Regex filter
+        filter = FtFilter::Regex(Regex::new(r"(.*)\.rs").unwrap());
+        result = list_files_with_filter(&root.path, filter).await?;
+        assert!(result.is_empty());
+        filter = FtFilter::Regex(Regex::new(r"(.*)\.rs").unwrap());
+        result = list_nested_files_with_filter(&root.path, filter).await?;
+        assert!(result.is_empty());
+        Ok(())
+    }
+
+    #[tokio::test]
+    async fn find_files_error() -> Result<()> {
+        let root = TempPath::new("filter_files_error").await?;
+        let test = root.new_file("test.js").await?;
+
+        assert!(list_files(&test.path).await.is_err());
+        assert!(list_nested_files(&test.path).await.is_err());
+        assert!(
+            list_files_with_filter(&test.path, FtFilter::Raw("filter".to_string()))
+                .await
+                .is_err()
+        );
+        assert!(
+            list_nested_files_with_filter(&test.path, FtFilter::Raw("filter".to_string()))
+                .await
+                .is_err()
+        );
+        Ok(())
+    }
+
+    #[tokio::test]
+    async fn nested_files_filter() -> Result<()> {
+        let root = TempPath::new("nested_filter_files").await?;
+        let ffolder = root.new_folder("ffolder").await?;
+        let sfolder = root.new_folder("sfolder").await?;
+        let tfolder = root.new_folder("tfolder").await?;
+
+        root.new_file("initial.pdf").await?;
+        ffolder.new_file("first.rs").await?;
+        sfolder.multi_file(vec!["second.txt", "third.rs"]).await?;
+        tfolder.new_file("initial.cpp").await?;
+
+        let mut filter = FtFilter::Raw("initial".to_string());
+        let mut result = list_nested_files_with_filter(&root.path, filter).await?;
+        assert_eq!(result.len(), 2);
+        assert!(result.contains(&root.path.join("tfolder/initial.cpp")));
+        assert!(result.contains(&root.path.join("initial.pdf")));
+
+        filter = FtFilter::Path(PathBuf::from("second.txt"));
+        result = list_nested_files_with_filter(&root.path, filter).await?;
+        assert_eq!(result.len(), 1);
+        assert_eq!(result[0], root.path.join("sfolder/second.txt"));
         Ok(())
     }
 }
