@@ -39,5 +39,7 @@ async fn main() -> anyhow::Result<()> {
     for lua_file in lua_files.into_iter() {
         tokio::fs::remove_file(lua_file).await?;
     }
+
+    Ok(())
 }
 ```

@@ -12,6 +12,27 @@
 //!
 //! The operations in this crate are designed for async/await, however sync variations
 //! of the operations exist in the [`crate::sync`] module.
+//!
+//! # Example
+//!
+//! ```rust,no_run
+//! use filetools::{FtFilter, list_nested_files_with_filter};
+//!
+//! #[tokio::main]
+//! async fn main() -> anyhow::Result<()> {
+//!     // Get all Lua files in the Neovim directory
+//!     let root_path = "/home/user/.config/nvim";
+//!     let filter = FtFilter::Raw("lua".to_string());
+//!     let lua_files = list_nested_files_with_filter(&root_path, filter).await?;
+//!
+//!     // Delete them all, we hate Lua
+//!     for lua_file in lua_files.into_iter() {
+//!         tokio::fs::remove_file(lua_file).await?;
+//!     }
+//!
+//!     Ok(())
+//! }
+//! ```
 
 pub mod naming;
 pub mod sync;
