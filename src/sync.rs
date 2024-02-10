@@ -129,7 +129,7 @@ pub fn list_files<P: AsRef<Path>>(path: P) -> Result<Vec<impl AsRef<Path>>> {
         "path should be a directory, not a file"
     );
 
-    iteritems_sync(path, FtIterItemState::FileNoRec, None)
+    iteritems_sync(path, FtIterItemState::File, None)
 }
 
 /// Lists all files in a directory including ALL subdirectories
@@ -164,7 +164,7 @@ pub fn list_nested_files<P: AsRef<Path>>(path: P) -> Result<Vec<PathBuf>> {
         "path should be a directory, not a file"
     );
 
-    iteritems_sync(path, FtIterItemState::FileRec, None)
+    iteritems_sync(path, FtIterItemState::RFile, None)
 }
 
 /// Lists files in a folder (not including subdirectories) matching a filter pattern.
@@ -206,7 +206,7 @@ pub fn list_files_with_filter<P: AsRef<Path>>(path: P, filter: FtFilter) -> Resu
         "path should be a directory, not a file"
     );
 
-    iteritems_sync(path, FtIterItemState::FileNoRec, Some(&filter))
+    iteritems_sync(path, FtIterItemState::File, Some(&filter))
 }
 
 /// Lists files in a folder (including ALL subdirectories) matching a filter pattern.
@@ -251,7 +251,7 @@ pub fn list_nested_files_with_filter<P: AsRef<Path>>(
         "path should be a directory, not a file"
     );
 
-    iteritems_sync(path, FtIterItemState::FileRec, Some(&filter))
+    iteritems_sync(path, FtIterItemState::RFile, Some(&filter))
 }
 
 /// Lists all directories in the given directory (not including subdirectories).
@@ -283,7 +283,7 @@ pub fn list_directories<P: AsRef<Path>>(path: P) -> Result<Vec<impl AsRef<Path>>
         path.as_ref().is_dir(),
         "path should be a directory, not a file"
     );
-    iteritems_sync(path, FtIterItemState::DirNoRec, None)
+    iteritems_sync(path, FtIterItemState::Dir, None)
 }
 
 /// Lists all directories in a directory including ALL subdirectories
@@ -317,7 +317,7 @@ pub fn list_nested_directories<P: AsRef<Path> + Send>(path: P) -> Result<Vec<Pat
         path.as_ref().is_dir(),
         "path should be a directory, not a file"
     );
-    iteritems_sync(path, FtIterItemState::DirRec, None)
+    iteritems_sync(path, FtIterItemState::RDir, None)
 }
 
 /// Lists directories in a given directory (not including subdirectories) matching a filter pattern.
@@ -359,7 +359,7 @@ pub fn list_directories_with_filter<P: AsRef<Path>>(
         path.as_ref().is_dir(),
         "path should be a directory, not a file"
     );
-    iteritems_sync(path, FtIterItemState::DirNoRec, Some(&filter))
+    iteritems_sync(path, FtIterItemState::Dir, Some(&filter))
 }
 
 /// Lists directories in a given directory (including ALL subdirectories) matching a filter pattern.
@@ -403,7 +403,7 @@ pub fn list_nested_directories_with_filter<P: AsRef<Path>>(
         path.as_ref().is_dir(),
         "path should be a directory, not a file"
     );
-    iteritems_sync(path, FtIterItemState::DirRec, Some(&filter))
+    iteritems_sync(path, FtIterItemState::RDir, Some(&filter))
 }
 
 // No tests needed cause these are tested in the main crate

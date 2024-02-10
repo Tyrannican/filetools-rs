@@ -91,13 +91,10 @@ pub enum FtFilter {
 /// ```
 pub fn is_subdir(path: impl AsRef<Path>, dir: impl AsRef<Path>) -> bool {
     for component in path.as_ref().components() {
-        match component {
-            Component::Normal(p) => {
-                if p == dir.as_ref().as_os_str() {
-                    return true;
-                }
+        if let Component::Normal(p) = component {
+            if p == dir.as_ref().as_os_str() {
+                return true;
             }
-            _ => {}
         }
     }
 
@@ -122,7 +119,7 @@ pub fn is_subdir(path: impl AsRef<Path>, dir: impl AsRef<Path>) -> bool {
 pub fn path_contains(path: impl AsRef<Path>, pattern: impl AsRef<Path> /* maybe */) -> bool {
     if let Some(p) = path.as_ref().to_str() {
         if let Some(pat) = pattern.as_ref().to_str() {
-            return p.contains(&pat);
+            return p.contains(pat);
         }
     }
 
@@ -275,7 +272,7 @@ pub async fn list_files<P: AsRef<Path> + Send>(path: P) -> Result<Vec<PathBuf>> 
         "path should be a directory, not a file"
     );
 
-    iteritems(path, FtIterItemState::FileNoRec, None).await
+    iteritems(path, FtIterItemState::File, None).await
 }
 
 /// Lists all files in a directory including ALL subdirectories
@@ -315,7 +312,7 @@ pub async fn list_nested_files<P: AsRef<Path> + Send>(path: P) -> Result<Vec<Pat
         "path should be a directory, not a file"
     );
 
-    iteritems(path, FtIterItemState::FileRec, None).await
+    iteritems(path, FtIterItemState::RFile, None).await
 }
 
 /// Lists files in a folder (not including subdirectories) matching a filter pattern.
@@ -370,7 +367,7 @@ pub async fn list_files_with_filter<P: AsRef<Path> + Send>(
         "path should be a directory, not a file"
     );
 
-    iteritems(path, FtIterItemState::FileNoRec, Some(&pattern)).await
+    iteritems(path, FtIterItemState::File, Some(&pattern)).await
 }
 
 /// Lists files in a folder (including ALL subdirectories) matching a filter pattern.
@@ -427,7 +424,7 @@ pub async fn list_nested_files_with_filter<P: AsRef<Path> + Send>(
         "path should be a directory, not a file"
     );
 
-    iteritems(path, FtIterItemState::FileRec, Some(&pattern)).await
+    iteritems(path, FtIterItemState::RFile, Some(&pattern)).await
 }
 
 /// Lists all directories in the given directory (not including subdirectories).
@@ -464,7 +461,7 @@ pub async fn list_directories<P: AsRef<Path> + Send>(path: P) -> Result<Vec<Path
         "path should be a directory, not a file"
     );
 
-    iteritems(path, FtIterItemState::DirNoRec, None).await
+    iteritems(path, FtIterItemState::Dir, None).await
 }
 
 /// Lists all directories in a directory including ALL subdirectories
@@ -499,7 +496,7 @@ pub async fn list_directories<P: AsRef<Path> + Send>(path: P) -> Result<Vec<Path
 /// ```
 pub async fn list_nested_directories<P: AsRef<Path> + Send>(path: P) -> Result<Vec<PathBuf>> {
     anyhow::ensure!(path.as_ref().exists(), "path does not exist");
-    iteritems(path, FtIterItemState::DirRec, None).await
+    iteritems(path, FtIterItemState::RDir, None).await
 }
 
 /// Lists directories in a given directory (not including subdirectories) matching a filter pattern.
@@ -554,7 +551,7 @@ pub async fn list_directories_with_filter<P: AsRef<Path> + Send>(
         "path should be a directory, not a file"
     );
 
-    iteritems(path, FtIterItemState::DirNoRec, Some(&filter)).await
+    iteritems(path, FtIterItemState::Dir, Some(&filter)).await
 }
 
 /// Lists directories in a given directory (including ALL subdirectories) matching a filter pattern.
@@ -611,7 +608,7 @@ pub async fn list_nested_directories_with_filter<P: AsRef<Path> + Send>(
         "path should be a directory, not a file"
     );
 
-    iteritems(path, FtIterItemState::DirRec, Some(&filter)).await
+    iteritems(path, FtIterItemState::RDir, Some(&filter)).await
 }
 
 #[cfg(test)]

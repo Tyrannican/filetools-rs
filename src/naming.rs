@@ -6,21 +6,19 @@
 //! use std::path::PathBuf;
 //! use filetools::naming;
 //!
-//! fn main() {
-//!     // Generates the name `test.pdf`
-//!     let custom_name = naming::generate_name("test", "pdf");
+//! // Generates the name `test.pdf`
+//! let custom_name = naming::generate_name("test", "pdf");
 //!
-//!     // Name will be suffixed by the current time it was generated
-//!     // E.g. `test_[Timestamp].pdf`
-//!     let timestamped_name = naming::generate_timestamped_name("test", "pdf");
+//! // Name will be suffixed by the current time it was generated
+//! // E.g. `test_[Timestamp].pdf`
+//! let timestamped_name = naming::generate_timestamped_name("test", "pdf");
 //!
-//!     // Random name is a UUIDv4 string suffixed by the extension
-//!     // E.g. `00762527-012a-43c1-a673-cad9bc5eef64.pdf`
-//!     let random_name = naming::generate_uuid4_name("pdf");
+//! // Random name is a UUIDv4 string suffixed by the extension
+//! // E.g. `00762527-012a-43c1-a673-cad9bc5eef64.pdf`
+//! let random_name = naming::generate_uuid4_name("pdf");
 //!
-//!     // N-digit name is a number prefixed by X zeros (e.g. 0005.pdf)
-//!     let n_digit_name = naming::generate_n_digit_name(5, 4, "pdf");
-//! }
+//! // N-digit name is a number prefixed by X zeros (e.g. 0005.pdf)
+//! let n_digit_name = naming::generate_n_digit_name(5, 4, "pdf");
 //! ```
 //!
 
@@ -90,7 +88,7 @@ pub fn generate_timestamped_name(fname: &str, ext: &str) -> PathBuf {
 pub fn generate_uuid4_name(ext: &str) -> PathBuf {
     let unique = Uuid::new_v4();
 
-    PathBuf::from(format!("{}{}", unique.to_string(), make_extension(ext)))
+    PathBuf::from(format!("{}{}", unique, make_extension(ext)))
 }
 
 /// Generates a `PathBuf` from a `number` prefixed by `n_digits` zeros.

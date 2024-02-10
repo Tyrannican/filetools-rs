@@ -12,16 +12,16 @@ use tokio::fs;
 #[derive(Debug, Copy, Clone, PartialEq, Eq)]
 pub(crate) enum FtIterItemState {
     /// Iterate files with no recursion
-    FileNoRec,
+    File,
 
     /// Iterate files with recursion
-    FileRec,
+    RFile,
 
     /// Iterate directories with no recursion
-    DirNoRec,
+    Dir,
 
     /// Iterate directories with recursion
-    DirRec,
+    RDir,
 }
 
 /// Helper function to determine if an path item is valid based on the supplied filter
@@ -75,24 +75,24 @@ pub(crate) async fn iteritems<P: AsRef<Path> + Send>(
         };
 
         match iterstate {
-            FtIterItemState::FileNoRec => {
+            FtIterItemState::File => {
                 if e_path.is_file() && filter_pass {
                     items.push(e_path);
                 }
             }
-            FtIterItemState::FileRec => {
+            FtIterItemState::RFile => {
                 if e_path.is_file() && filter_pass {
                     items.push(e_path)
                 } else if e_path.is_dir() {
                     items.extend(iteritems(e_path, iterstate, filter).await?);
                 }
             }
-            FtIterItemState::DirNoRec => {
+            FtIterItemState::Dir => {
                 if e_path.is_dir() && filter_pass {
                     items.push(e_path);
                 }
             }
-            FtIterItemState::DirRec => {
+            FtIterItemState::RDir => {
                 if e_path.is_dir() {
                     if filter_pass {
                         items.push(e_path.clone());
@@ -126,24 +126,24 @@ pub(crate) fn iteritems_sync<P: AsRef<Path>>(
             None => true,
         };
         match iterstate {
-            FtIterItemState::FileNoRec => {
+            FtIterItemState::File => {
                 if e_path.is_file() && filter_pass {
                     items.push(e_path);
                 }
             }
-            FtIterItemState::FileRec => {
+            FtIterItemState::RFile => {
                 if e_path.is_file() && filter_pass {
                     items.push(e_path)
                 } else if e_path.is_dir() {
                     items.extend(iteritems_sync(e_path, iterstate, filter)?);
                 }
             }
-            FtIterItemState::DirNoRec => {
+            FtIterItemState::Dir => {
                 if e_path.is_dir() && filter_pass {
                     items.push(e_path);
                 }
             }
-            FtIterItemState::DirRec => {
+            FtIterItemState::RDir => {
                 if e_path.is_dir() {
                     if filter_pass {
                         items.push(e_path.clone());
