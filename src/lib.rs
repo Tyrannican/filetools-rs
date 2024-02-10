@@ -12,8 +12,7 @@
 //!
 //! The operations in this crate are designed for async/await, however sync variations
 //! of the operations exist in the [`crate::sync`] module.
-//!
-//! TODO: More Docs!
+
 pub mod naming;
 pub mod sync;
 pub(crate) mod util;
@@ -260,6 +259,8 @@ pub async fn list_files<P: AsRef<Path> + Send>(path: P) -> Result<Vec<PathBuf>> 
 
 /// Lists all files in a directory including ALL subdirectories
 ///
+/// Use responsibly.
+///
 /// ## Sync
 ///
 /// For the `sync` version, see [`crate::sync::list_nested_files`]
@@ -355,6 +356,8 @@ pub async fn list_files_with_filter<P: AsRef<Path> + Send>(
 ///
 /// This pattern can be a `String`, `PathBuf`, or a [`regex::Regex`] pattern.
 ///
+/// Use responsibly.
+///
 /// ## Sync
 ///
 /// For the `sync` version, see [`crate::sync::list_nested_files_with_filter`]
@@ -445,6 +448,8 @@ pub async fn list_directories<P: AsRef<Path> + Send>(path: P) -> Result<Vec<Path
 
 /// Lists all directories in a directory including ALL subdirectories
 ///
+/// Use responsibly.
+///
 /// ## Sync
 ///
 /// For the `sync` version, see [`crate::sync::list_nested_directories`]
@@ -534,6 +539,8 @@ pub async fn list_directories_with_filter<P: AsRef<Path> + Send>(
 /// Lists directories in a given directory (including ALL subdirectories) matching a filter pattern.
 ///
 /// This pattern can be a `String`, `PathBuf`, or a [`regex::Regex`] pattern.
+///
+/// Use responsibly.
 ///
 /// ## Sync
 ///

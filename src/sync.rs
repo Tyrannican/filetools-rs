@@ -1,4 +1,6 @@
 //! Sync variations of the main [`crate`] functions
+//!
+//! All operations are identical to those defined in the `async` version.
 use crate::util::FtIterItemState;
 use crate::{naming::generate_n_digit_name, util::iteritems_sync, FtFilter};
 use anyhow::{Context, Result};
@@ -132,6 +134,8 @@ pub fn list_files<P: AsRef<Path>>(path: P) -> Result<Vec<impl AsRef<Path>>> {
 
 /// Lists all files in a directory including ALL subdirectories
 ///
+/// Use responsibly.
+///
 /// ## Async
 ///
 /// For the `async` version, see: [`crate::list_nested_files`]
@@ -209,6 +213,8 @@ pub fn list_files_with_filter<P: AsRef<Path>>(path: P, filter: FtFilter) -> Resu
 ///
 /// This pattern can be a `String`, `PathBuf`, or a [`regex::Regex`] pattern.
 ///
+/// Use responsibly.
+///
 /// ## Async
 ///
 /// For the `async` version, see: [`crate::list_nested_files_with_filter`]
@@ -281,6 +287,8 @@ pub fn list_directories<P: AsRef<Path>>(path: P) -> Result<Vec<impl AsRef<Path>>
 }
 
 /// Lists all directories in a directory including ALL subdirectories
+///
+/// Use responsibly.
 ///
 /// ## Async
 ///
@@ -355,6 +363,8 @@ pub fn list_directories_with_filter<P: AsRef<Path>>(
 }
 
 /// Lists directories in a given directory (including ALL subdirectories) matching a filter pattern.
+///
+/// Use responsibly.
 ///
 /// This pattern can be a `String`, `PathBuf`, or a [`regex::Regex`] pattern.
 ///
