@@ -6,7 +6,7 @@ edition = "2021"
 description = "General filehelpers to make some file operations easier"
 repository = "https://github.com/Tyrannican/filetools-rs"
 license = "MIT OR Apache-2.0"
-keywords = ["files", "utility", "filesystem"]
+keywords = ["files", "utility", "filesystem", "path"]
 categories = ["filesystem"]
 readme = "README.md"
 
