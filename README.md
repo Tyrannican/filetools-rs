@@ -20,5 +20,24 @@ Add to your `Cargo.toml`
 
 ```toml
 [dependencies]
-filetools = "0.2.0"
+filetools = "0.3.0"
+```
+
+Then import into your project:
+
+```rust
+use filetools::{FtFilter, list_nested_files_with_filter};
+
+#[tokio::main]
+async fn main() -> anyhow::Result<()> {
+    // Get all Lua files in the Neovim directory
+    let root_path = "/home/user/.config/nvim";
+    let filter = FtFilter::Raw("lua".to_string());
+    let lua_files = list_nested_files_with_filter(&root_path, filter).await?;
+
+    // Delete them all, we hate Lua
+    for lua_file in lua_files.into_iter() {
+        tokio::fs::remove_file(lua_file).await?;
+    }
+}
 ```
