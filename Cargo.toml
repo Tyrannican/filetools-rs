@@ -16,7 +16,7 @@ async-recursion = "1.0.5"
 chrono = "0.3"
 regex = "1.10.3"
 tokio = { version = "1.35.1", features = ["fs"] }
-uuid = { version = "0.8.1", features = ["v4"]}
+uuid = { version = "1.7.0", features = ["v4"]}
 
 [dev-dependencies]
 tokio = { version = "1.35.1", features = ["macros", "rt-multi-thread"] }
