@@ -1,17 +1,23 @@
 [package]
 name = "filetools"
-version = "0.2.0"
+version = "0.3.0"
 authors = ["Graham Keenan <graham.keenan@outlook.com>"]
-edition = "2018"
-description = "Port of Jonathan Grizou's filetools Python library (https://github.com/jgrizou/filetools)"
+edition = "2021"
+description = "Helper functions for path operations"
 repository = "https://github.com/Tyrannican/filetools-rs"
-license = "MIT"
-keywords = ["files", "utility", "filesystem"]
+license = "MIT OR Apache-2.0"
+keywords = ["files", "utility", "filesystem", "path"]
 categories = ["filesystem"]
 readme = "README.md"
 
-# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
-
 [dependencies]
+anyhow = "1.0.79"
+async-recursion = "1.0.5"
 chrono = "0.3"
+regex = "1.10.3"
+tokio = { version = "1.35.1", features = ["fs"] }
 uuid = { version = "0.8.1", features = ["v4"]}
+
+[dev-dependencies]
+tokio = { version = "1.35.1", features = ["macros", "rt-multi-thread"] }
+regex = "1.10.3"
