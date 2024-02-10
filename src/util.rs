@@ -7,8 +7,6 @@ use std::path::{Path, PathBuf};
 use tokio::fs;
 
 /// Determines the type of iteration performed by the `list_directories` and `list_files` functions
-/// If the NoRec variation is used, only the current directory is considered
-/// If the Rec variation is used, then ALL subdirectores are traversed
 #[derive(Debug, Copy, Clone, PartialEq, Eq)]
 pub(crate) enum FtIterItemState {
     /// Iterate files with no recursion
