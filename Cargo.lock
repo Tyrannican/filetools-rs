@@ -11,7 +11,8 @@ dependencies = [
  "gimli",
 ]
 
-[[package]]
+This library allows for simple filename generation and finding all files/folders in a directory.
+[package]]
 name = "adler"
 version = "1.0.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
